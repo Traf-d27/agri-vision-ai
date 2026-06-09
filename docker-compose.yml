@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_db:/app
+    environment:
+      - DATABASE_URL=sqlite:///./agri_intel.db
+      - SECRET_KEY=96d6786c07a3c36a6e5b56501c5ad83226a2468305ffae4d2719119616d6f8ff
+    restart: always
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  backend_db:
