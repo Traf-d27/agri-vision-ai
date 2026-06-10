@@ -1,6 +1,28 @@
-from pydantic_settings import BaseSettings
+import os
+from dotenv import load_dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Union
 from pydantic import field_validator
+
+# Load environment variables from .env if present (searching up the directory tree)
+load_dotenv()
+
+def mask_database_url(url: str) -> str:
+    if not url:
+        return "None"
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.password:
+            user_part = parsed.username or ""
+            host_part = parsed.hostname or ""
+            netloc = f"{user_part}:******@{host_part}"
+            if parsed.port:
+                netloc += f":{parsed.port}"
+            return parsed._replace(netloc=netloc).geturl()
+        return url
+    except Exception:
+        return "Invalid URL format (masked)"
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "AgriIntel AI Platform"
@@ -26,7 +48,12 @@ class Settings(BaseSettings):
             return v
         raise ValueError(v)
 
-    class Config:
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
 settings = Settings()
+

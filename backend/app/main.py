@@ -4,8 +4,10 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.core.config import settings
+from app.core.config import settings, mask_database_url
 from app.db.session import engine, Base, SessionLocal, get_db
+
+print(f"INFO:     DATABASE_URL loaded: {mask_database_url(settings.DATABASE_URL)}")
 from app.services.data_manager import seed_database
 from app.api.routes import auth, farms, analytics, ml, reports, assistant
 from app.models.prediction_log import PredictionLog
@@ -50,8 +52,40 @@ app.include_router(assistant.router, prefix=f"{settings.API_V1_STR}/assistant", 
 @app.get("/health")
 @app.get("/api/health")
 def health_check(db: Session = Depends(get_db)):
+    diagnostics = {}
     try:
         db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
-        return {"status": "unhealthy", "database": f"offline: {str(e)}"}
+        diagnostics["error"] = str(e)
+        diagnostics["error_type"] = type(e).__name__
+        diagnostics["database_url_configured"] = settings.DATABASE_URL is not None
+        diagnostics["database_url_masked"] = mask_database_url(settings.DATABASE_URL)
+        
+        try:
+            pool = engine.pool
+            diagnostics["pool_class"] = pool.__class__.__name__
+            diagnostics["pool_size"] = pool.size()
+            diagnostics["pool_checkedin"] = pool.checkedin()
+            diagnostics["pool_checkedout"] = pool.checkedout()
+            diagnostics["pool_overflow"] = pool.overflow()
+        except Exception as pool_err:
+            diagnostics["pool_error"] = str(pool_err)
+            
+        try:
+            import psycopg2
+            diagnostics["psycopg2_version"] = psycopg2.__version__
+        except Exception as driver_err:
+            diagnostics["psycopg2_error"] = str(driver_err)
+            
+        try:
+            import sqlalchemy
+            diagnostics["sqlalchemy_version"] = sqlalchemy.__version__
+        except Exception as sa_err:
+            diagnostics["sqlalchemy_version_error"] = str(sa_err)
+            
+        return {
+            "status": "unhealthy",
+            "database": f"offline: {str(e)}",
+            "diagnostics": diagnostics
+        }
