@@ -15,6 +15,8 @@ import ChatbotOverlay from './components/ChatbotOverlay';
 import GeoIntelligenceView from './components/GeoIntelligenceView';
 import SatelliteMonitoringView from './components/SatelliteMonitoringView';
 import AuthGate from './components/AuthGate';
+import StateAnalyticsView from './components/StateAnalyticsView';
+import DistrictAnalyticsView from './components/DistrictAnalyticsView';
 
 import { 
   LayoutDashboard, 
@@ -34,7 +36,9 @@ import {
   Bell,
   CheckCircle,
   Globe,
-  Radar
+  Radar,
+  Building2,
+  MapPin
 } from 'lucide-react';
 
 function AppContent() {
@@ -65,6 +69,8 @@ function AppContent() {
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="nav-item-icon" /> },
     { id: 'explorer', label: 'Dataset Explorer', icon: <Table className="nav-item-icon" /> },
     { id: 'analytics', label: 'Advanced Stats', icon: <BarChart2 className="nav-item-icon" /> },
+    { id: 'state_analytics', label: 'State Analytics', icon: <Building2 className="nav-item-icon" /> },
+    { id: 'district_analytics', label: 'District Analytics', icon: <MapPin className="nav-item-icon" /> },
     { id: 'geo', label: 'Regional Intel', icon: <Globe className="nav-item-icon" /> },
     { id: 'satellite', label: 'Satellite Monitor', icon: <Radar className="nav-item-icon" /> },
     { id: 'ml', label: 'AI & ML Modeling', icon: <Brain className="nav-item-icon" /> },
@@ -82,6 +88,8 @@ function AppContent() {
       case 'dashboard': return <DashboardView />;
       case 'explorer': return <DatasetExplorerView setActiveTab={setActiveTab} />;
       case 'analytics': return <AnalyticsView />;
+      case 'state_analytics': return <StateAnalyticsView />;
+      case 'district_analytics': return <DistrictAnalyticsView />;
       case 'geo': return <GeoIntelligenceView />;
       case 'satellite': return <SatelliteMonitoringView />;
       case 'ml': return <MlLabView />;

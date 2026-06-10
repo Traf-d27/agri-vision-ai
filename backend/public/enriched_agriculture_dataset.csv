@@ -1,0 +1,51 @@
+Farm_ID,Crop_Type,Farm_Area(acres),Irrigation_Type,Fertilizer_Used(tons),Pesticide_Used(kg),Yield(tons),Soil_Type,Season,Water_Usage(cubic meters),State,City,Latitude,Longitude,Avg_Temp,Annual_Rainfall,Avg_Humidity,Avg_WindSpeed,Drought_Risk,Flood_Risk,Soil_Index
+F001,Cotton,329.4,Sprinkler,8.14,2.21,14.44,Loamy,Kharif,76648.2,Maharashtra,Nagpur,21.15,79.08,26.8,1150,65,13,Moderate,Moderate,80
+F002,Carrot,18.67,Manual,4.77,4.36,42.91,Peaty,Kharif,68725.54,Karnataka,Ooty,11.41,76.69,23.6,1250,70,14,Low,Moderate,84
+F003,Sugarcane,306.03,Flood,2.91,0.56,33.44,Silty,Kharif,75538.56,Maharashtra,Kolhapur,16.7,74.24,26.8,1150,65,13,Moderate,Moderate,80
+F004,Tomato,380.21,Rain-fed,3.32,4.35,34.08,Silty,Zaid,45401.23,Andhra Pradesh,Chittoor,13.21,79.1,28.5,900,72,16,Moderate,Moderate,77
+F005,Tomato,135.56,Sprinkler,8.33,4.48,43.28,Clay,Zaid,93718.69,Andhra Pradesh,Chittoor,13.21,79.1,28.5,900,72,16,Moderate,Moderate,77
+F006,Sugarcane,12.5,Sprinkler,6.42,2.25,38.18,Loamy,Zaid,46487.98,Maharashtra,Kolhapur,16.7,74.24,26.8,1150,65,13,Moderate,Moderate,80
+F007,Soybean,360.06,Drip,1.83,2.37,44.93,Sandy,Rabi,40583.57,Madhya Pradesh,Indore,22.71,75.85,25.8,1050,62,10,Moderate,Low,79
+F008,Rice,464.6,Drip,5.18,0.91,4.23,Silty,Kharif,9392.38,Andhra Pradesh,Nellore,14.44,79.98,28.5,900,72,16,Moderate,Moderate,77
+F009,Maize,389.37,Drip,0.57,4.93,3.86,Peaty,Rabi,60202.14,Bihar,Khagaria,25.5,86.48,26.1,1200,75,11,Low,High,83
+F010,Soybean,184.37,Drip,2.18,2.67,17.25,Sandy,Kharif,90922.15,Maharashtra,Latur,18.4,76.58,26.8,1150,65,13,Moderate,Moderate,80
+F011,Rice,279.95,Drip,8.02,1.24,32.85,Clay,Zaid,5869.75,Punjab,Ludhiana,30.9,75.85,22.4,650,55,12,Low,Low,88
+F012,Sugarcane,145.32,Flood,3.01,2.27,8.08,Clay,Kharif,88976.51,Uttar Pradesh,Meerut,28.98,77.7,25.2,950,68,9,Low,Moderate,85
+F013,Wheat,329.1,Drip,5.26,0.83,5.44,Clay,Zaid,45922.35,Haryana,Karnal,29.68,76.99,24.1,550,52,11,Moderate,Low,82
+F014,Rice,246.02,Flood,1.01,3.45,11.38,Sandy,Rabi,71953.14,Punjab,Ludhiana,30.9,75.85,22.4,650,55,12,Low,Low,88
+F015,Sugarcane,305.15,Rain-fed,5.39,2.15,28.77,Peaty,Kharif,33615.77,Maharashtra,Kolhapur,16.7,74.24,26.8,1150,65,13,Moderate,Moderate,80
+F016,Barley,60.22,Flood,2.19,0.35,16.03,Sandy,Zaid,25132.48,Rajasthan,Jaipur,26.91,75.78,29.2,380,38,18,High,Low,58
+F017,Carrot,284.01,Manual,5.89,0.81,47.7,Loamy,Zaid,88301.46,Haryana,Panipat,29.39,76.97,24.1,550,52,11,Moderate,Low,82
+F018,Maize,128.23,Rain-fed,4.91,0.77,16.67,Loamy,Rabi,18660.03,Bihar,Khagaria,25.5,86.48,26.1,1200,75,11,Low,High,83
+F019,Maize,460.93,Drip,1.09,1.31,39.96,Sandy,Zaid,54314.28,Karnataka,Haveri,14.8,75.4,23.6,1250,70,14,Low,Moderate,84
+F020,Barley,58.85,Sprinkler,3.61,3.32,18.85,Sandy,Kharif,92481.89,Rajasthan,Jaipur,26.91,75.78,29.2,380,38,18,High,Low,58
+F021,Cotton,377.05,Drip,5.95,0.91,29.17,Clay,Rabi,26743.55,Telangana,Warangal,18.0,79.58,28.2,850,60,12,High,Low,74
+F022,Wheat,92.67,Flood,6.95,3.64,30.7,Clay,Rabi,42874.34,Haryana,Karnal,29.68,76.99,24.1,550,52,11,Moderate,Low,82
+F023,Potato,15.67,Drip,9.95,2.99,18.13,Loamy,Zaid,41862.86,West Bengal,Hooghly,22.9,88.39,27.0,1650,82,14,Low,High,91
+F024,Rice,483.88,Drip,6.31,2.29,34.46,Clay,Zaid,61383.07,Punjab,Ludhiana,30.9,75.85,22.4,650,55,12,Low,Low,88
+F025,Barley,75.64,Flood,6.69,3.57,6.14,Silty,Zaid,43847.82,Uttar Pradesh,Aligarh,27.89,78.08,25.2,950,68,9,Low,Moderate,85
+F026,Wheat,162.28,Flood,5.85,2.42,24.63,Loamy,Rabi,65838.4,Haryana,Karnal,29.68,76.99,24.1,550,52,11,Moderate,Low,82
+F027,Cotton,375.1,Rain-fed,0.5,4.76,22.51,Clay,Kharif,39362.44,Gujarat,Rajkot,22.3,70.8,27.5,750,58,15,Moderate,Low,78
+F028,Tomato,256.19,Flood,7.32,2.19,48.02,Silty,Rabi,81313.04,Maharashtra,Nashik,19.99,73.78,26.8,1150,65,13,Moderate,Moderate,80
+F029,Wheat,288.52,Manual,1.79,4.78,36.9,Silty,Zaid,23208.04,Uttar Pradesh,Bareilly,28.36,79.41,25.2,950,68,9,Low,Moderate,85
+F030,Potato,286.52,Rain-fed,8.91,0.77,30.5,Loamy,Zaid,93407.38,Uttar Pradesh,Agra,27.17,78.0,25.2,950,68,9,Low,Moderate,85
+F031,Barley,136.16,Flood,5.89,1.36,11.86,Clay,Zaid,30098.35,Haryana,Hisar,29.14,75.72,24.1,550,52,11,Moderate,Low,82
+F032,Carrot,350.42,Flood,8.4,2.94,24.34,Clay,Rabi,71580.87,Haryana,Panipat,29.39,76.97,24.1,550,52,11,Moderate,Low,82
+F033,Barley,446.76,Drip,7.79,0.96,46.47,Loamy,Zaid,93656.06,Rajasthan,Jaipur,26.91,75.78,29.2,380,38,18,High,Low,58
+F034,Tomato,264.12,Drip,4.75,4.79,12.92,Loamy,Rabi,92745.01,Karnataka,Kolar,13.13,78.13,23.6,1250,70,14,Low,Moderate,84
+F035,Soybean,266.03,Drip,8.57,1.35,34.45,Silty,Zaid,43610.21,Rajasthan,Kota,25.18,75.83,29.2,380,38,18,High,Low,58
+F036,Cotton,446.16,Manual,4.35,3.47,12.53,Loamy,Zaid,38874.28,Gujarat,Rajkot,22.3,70.8,27.5,750,58,15,Moderate,Low,78
+F037,Soybean,156.1,Manual,1.18,4.43,40.15,Loamy,Zaid,73646.55,Maharashtra,Latur,18.4,76.58,26.8,1150,65,13,Moderate,Moderate,80
+F038,Barley,431.22,Drip,5.71,3.18,45.95,Silty,Kharif,36065.94,Uttar Pradesh,Aligarh,27.89,78.08,25.2,950,68,9,Low,Moderate,85
+F039,Cotton,220.48,Flood,9.96,2.91,10.53,Clay,Zaid,82549.03,Telangana,Warangal,18.0,79.58,28.2,850,60,12,High,Low,74
+F040,Cotton,166.82,Rain-fed,2.85,1.36,46.19,Sandy,Zaid,12007.7,Gujarat,Rajkot,22.3,70.8,27.5,750,58,15,Moderate,Low,78
+F041,Rice,370.79,Flood,8.18,4.99,35.01,Sandy,Kharif,85208.71,Andhra Pradesh,Nellore,14.44,79.98,28.5,900,72,16,Moderate,Moderate,77
+F042,Sugarcane,418.99,Sprinkler,0.78,0.58,26.29,Clay,Zaid,33705.69,Karnataka,Belagavi,15.85,74.5,23.6,1250,70,14,Low,Moderate,84
+F043,Cotton,78.79,Flood,1.35,3.0,11.45,Sandy,Zaid,94754.73,Maharashtra,Nagpur,21.15,79.08,26.8,1150,65,13,Moderate,Moderate,80
+F044,Soybean,84.12,Manual,4.64,2.53,24.77,Sandy,Rabi,40614.4,Maharashtra,Latur,18.4,76.58,26.8,1150,65,13,Moderate,Moderate,80
+F045,Tomato,326.69,Sprinkler,5.24,0.55,18.34,Peaty,Kharif,37466.11,Andhra Pradesh,Chittoor,13.21,79.1,28.5,900,72,16,Moderate,Moderate,77
+F046,Carrot,112.8,Sprinkler,1.8,1.01,31.57,Clay,Kharif,79966.1,Haryana,Panipat,29.39,76.97,24.1,550,52,11,Moderate,Low,82
+F047,Potato,347.66,Drip,3.86,2.68,31.47,Sandy,Kharif,86989.88,West Bengal,Hooghly,22.9,88.39,27.0,1650,82,14,Low,High,91
+F048,Potato,77.39,Sprinkler,9.34,3.0,20.53,Silty,Zaid,5874.17,West Bengal,Hooghly,22.9,88.39,27.0,1650,82,14,Low,High,91
+F049,Barley,462.37,Sprinkler,2.3,0.14,39.51,Clay,Kharif,53879.87,Haryana,Hisar,29.14,75.72,24.1,550,52,11,Moderate,Low,82
+F050,Tomato,292.25,Rain-fed,4.08,0.76,45.14,Silty,Kharif,90232.08,Karnataka,Kolar,13.13,78.13,23.6,1250,70,14,Low,Moderate,84
