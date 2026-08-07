@@ -136,6 +136,17 @@ export function tempToColor(c) {
   return '#ef4444';
 }
 
+/** Crop Cover percentage (0-100%) to color */
+export function cropCoverToColor(pct) {
+  if (pct === null || pct === undefined) return '#374151';
+  const val = pct > 1 ? pct : pct * 100;
+  if (val < 30) return '#fef08a';
+  if (val < 48) return '#a3e635';
+  if (val < 65) return '#22c55e';
+  if (val < 80) return '#16a34a';
+  return '#15803d';
+}
+
 /** Generic value normalizer: returns 0–1 opacity */
 export function normalizeValue(value, min, max) {
   if (max === min) return 0.5;
@@ -148,7 +159,7 @@ export const LAYER_CONFIGS = {
   ndwi:          { label: 'Water Stress', unit: '',    colorFn: ndviToColor,     icon: '💧', description: 'Normalized water index' },
   rainfall:      { label: 'Rainfall',     unit: 'mm',  colorFn: rainfallToColor, icon: '🌧️', description: 'Annual rainfall (mm)' },
   temperature:   { label: 'Temperature',  unit: '°C',  colorFn: tempToColor,     icon: '🌡️', description: 'Average temperature (°C)' },
-  crop_cover:    { label: 'Crop Cover',   unit: '%',   colorFn: ndviToColor,     icon: '🌾', description: '% area under cultivation' },
+  crop_cover:    { label: 'Crop Cover',   unit: '%',   colorFn: cropCoverToColor,icon: '🌾', description: '% area under cultivation' },
   yield:         { label: 'Yield',        unit: 't/ha',colorFn: ndviToColor,     icon: '📊', description: 'Average yield (tons/ha)' },
   soil_fertility:{ label: 'Soil Fertility',unit: '',   colorFn: ndviToColor,     icon: '🪨', description: 'Soil fertility index' },
 };

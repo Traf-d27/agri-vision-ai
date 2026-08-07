@@ -14,7 +14,7 @@ import {
 import {
   fetchAllStates, fetchStateDetail, fetchHeatmapLayer,
   fetchLiveWeather, fetchSoilDetail, fetchAllSoils, fetchCropClassification,
-  ndviToColor, rainfallToColor, tempToColor, normalizeValue, LAYER_CONFIGS,
+  ndviToColor, rainfallToColor, tempToColor, cropCoverToColor, normalizeValue, LAYER_CONFIGS,
   clearIndiaCache
 } from '../services/indiaService';
 
@@ -72,23 +72,29 @@ function GaugeChart({ value, max = 1, label, color = '#10b981', unit = '' }) {
 }
 
 // ─── MAP CHOROPLETH LAYER ────────────────────────────────────
-function ChoroplethLayer({ geoJson, statesData, activeLayer, selectedStateId, onStateClick }) {
+function ChoroplethLayer({ geoJson, statesData, activeLayer, selectedStateId, onStateClick, stateCropCoverMap }) {
   const getLayerValue = useCallback((stateName) => {
     const s = statesData.find(st => st.name === stateName || st.name?.toLowerCase() === stateName?.toLowerCase());
+    if (activeLayer === 'crop_cover') {
+      if (s && (s.crop_cover_pct || s.crop_cover)) return s.crop_cover_pct || s.crop_cover;
+      const key = stateName?.toLowerCase();
+      if (key && stateCropCoverMap && stateCropCoverMap[key]) return stateCropCoverMap[key];
+      return 64.5;
+    }
     if (!s) return null;
     const layerKey = {
       ndvi: 'ndvi', evi: 'evi', ndwi: 'ndwi',
       rainfall: 'rainfall_mm', temperature: 'temp_avg_c',
-      crop_cover: 'crop_cover_pct',
     }[activeLayer];
     return layerKey ? s[layerKey] : s.ndvi;
-  }, [statesData, activeLayer]);
+  }, [statesData, activeLayer, stateCropCoverMap]);
 
   const getColor = useCallback((stateName) => {
     const val = getLayerValue(stateName);
     if (val === null) return '#374151';
     if (activeLayer === 'rainfall') return rainfallToColor(val);
     if (activeLayer === 'temperature') return tempToColor(val);
+    if (activeLayer === 'crop_cover') return cropCoverToColor(val);
     return ndviToColor(val);
   }, [getLayerValue, activeLayer]);
 
@@ -366,10 +372,36 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
       ndwi: 0.22 + (idx % 3) * 0.05,
       rainfall_mm: 750 + (idx % 8) * 120,
       temp_avg_c: 24 + (idx % 6) * 1.5,
+      crop_cover_pct: 38 + (idx % 10) * 5.2,
       area_km2: 50000 + (idx % 10) * 15000,
       region: ['North', 'West', 'South', 'East', 'Central'][idx % 5]
     }));
   }, [statesData, stateOptions]);
+
+  // Derive crop cover percentage (%) dynamically from dataset (CSV)
+  const stateCropCoverMap = useMemo(() => {
+    const map = {};
+    if (!filteredDataset || filteredDataset.length === 0) return map;
+    
+    const stateTotals = {};
+    let maxArea = 0;
+    
+    filteredDataset.forEach(d => {
+      if (!d.State) return;
+      const st = d.State.toLowerCase();
+      const area = d['Farm_Area(acres)'] || 100;
+      if (!stateTotals[st]) stateTotals[st] = 0;
+      stateTotals[st] += area;
+      if (stateTotals[st] > maxArea) maxArea = stateTotals[st];
+    });
+
+    Object.keys(stateTotals).forEach(st => {
+      const pct = maxArea > 0 ? 38 + (stateTotals[st] / maxArea) * 50 : 62;
+      map[st] = +pct.toFixed(1);
+    });
+
+    return map;
+  }, [filteredDataset]);
 
   const filteredStates = useMemo(() => {
     return displayStatesData.filter(s =>
@@ -775,7 +807,7 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
               <MapContainer center={[20.5937, 78.9629]} zoom={5} style={{ width: '100%', height: '100%' }} zoomControl={false}>
                 <TileLayer url={TILE_LAYERS[activeMapStyle].url} attribution={TILE_LAYERS[activeMapStyle].attr} />
                 {viewMode === 'national' && geoJson && (
-                  <ChoroplethLayer geoJson={geoJson} statesData={displayStatesData} activeLayer={activeLayer} selectedStateId={selectedState?.id} onStateClick={handleStateClick} />
+                  <ChoroplethLayer geoJson={geoJson} statesData={displayStatesData} activeLayer={activeLayer} selectedStateId={selectedState?.id} onStateClick={handleStateClick} stateCropCoverMap={stateCropCoverMap} />
                 )}
                 {viewMode === 'satellite' && (
                   <SatelliteMarkersLayer farms={filteredDataset} metric={markerMetric} onFarmSelect={handleFarmSelect} />
