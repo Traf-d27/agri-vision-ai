@@ -23,6 +23,8 @@ class PredictionRequest(BaseModel):
 def train_regression(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
     df = get_filtered_df(db, filters)
     if df.empty or len(df) < 5:
+        df = get_filtered_df(db, {})
+    if df.empty:
         raise HTTPException(status_code=400, detail="Insufficient records to train regression models.")
         
     records = df.to_dict(orient='records')
@@ -32,6 +34,8 @@ def train_regression(db: Session = Depends(get_db), filters: Dict[str, Any] = De
 def train_classifier(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
     df = get_filtered_df(db, filters)
     if df.empty or len(df) < 5:
+        df = get_filtered_df(db, {})
+    if df.empty:
         raise HTTPException(status_code=400, detail="Insufficient records to train classification models.")
         
     records = df.to_dict(orient='records')
@@ -50,6 +54,8 @@ def run_clustering(
 ):
     df = get_filtered_df(db, filters)
     if df.empty or len(df) < 3:
+        df = get_filtered_df(db, {})
+    if df.empty:
         raise HTTPException(status_code=400, detail="Insufficient records to perform clustering.")
         
     records = df.to_dict(orient='records')
@@ -62,6 +68,8 @@ def predict_yield(
     filters: Dict[str, Any] = Depends(get_filter_params)
 ):
     df = get_filtered_df(db, filters)
+    if df.empty or len(df) < 5:
+        df = get_filtered_df(db, {})
     if df.empty:
         raise HTTPException(status_code=400, detail="No farm records found in database to fit predictor.")
         

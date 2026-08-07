@@ -213,6 +213,14 @@ export const PlatformProvider = ({ children }) => {
     }
   });
 
+  // Auto-trigger ML model compilation when farms dataset is loaded
+  useEffect(() => {
+    if (farmsData && farmsData.length > 0 && !trainMutation.data && !trainMutation.isPending) {
+      trainMutation.mutate();
+      trainClassifierMutation.mutate();
+    }
+  }, [farmsData]);
+
   const predictYield = async (payload) => {
     const response = await fetch(`${API_BASE}/ml/predict?${queryParams}`, {
       method: 'POST',
