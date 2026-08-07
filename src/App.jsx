@@ -69,12 +69,10 @@ function AppContent() {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="nav-item-icon" /> },
     { id: 'india_intel', label: '🇮🇳 India Intel', icon: <Globe className="nav-item-icon" style={{ color: '#10b981' }} /> },
+    { id: 'regional_intel', label: 'State & District Intel', icon: <MapPin className="nav-item-icon" style={{ color: '#06b6d4' }} /> },
+    { id: 'satellite', label: 'Satellite Monitor', icon: <Radar className="nav-item-icon" /> },
     { id: 'explorer', label: 'Dataset Explorer', icon: <Table className="nav-item-icon" /> },
     { id: 'analytics', label: 'Advanced Stats', icon: <BarChart2 className="nav-item-icon" /> },
-    { id: 'state_analytics', label: 'State Analytics', icon: <Building2 className="nav-item-icon" /> },
-    { id: 'district_analytics', label: 'District Analytics', icon: <MapPin className="nav-item-icon" /> },
-    { id: 'geo', label: 'Regional Intel', icon: <Globe className="nav-item-icon" /> },
-    { id: 'satellite', label: 'Satellite Monitor', icon: <Radar className="nav-item-icon" /> },
     { id: 'ml', label: 'AI & ML Modeling', icon: <Brain className="nav-item-icon" /> },
     { id: 'clustering', label: 'Clustering Lab', icon: <Network className="nav-item-icon" /> },
     { id: 'sustainability', label: 'Sustainability Hub', icon: <Heart className="nav-item-icon" /> },
@@ -88,13 +86,14 @@ function AppContent() {
   const renderView = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView />;
-      case 'india_intel': return <IndiaIntelView />;
+      case 'india_intel': return <IndiaIntelView initialMode="national" />;
+      case 'regional_intel':
+      case 'state_analytics':
+      case 'district_analytics':
+      case 'geo': return <IndiaIntelView initialMode="state_analytics" />;
+      case 'satellite': return <IndiaIntelView initialMode="satellite" />;
       case 'explorer': return <DatasetExplorerView setActiveTab={setActiveTab} />;
       case 'analytics': return <AnalyticsView />;
-      case 'state_analytics': return <StateAnalyticsView />;
-      case 'district_analytics': return <DistrictAnalyticsView />;
-      case 'geo': return <GeoIntelligenceView />;
-      case 'satellite': return <SatelliteMonitoringView />;
       case 'ml': return <MlLabView />;
       case 'clustering': return <ClusteringLabView />;
       case 'sustainability': return <SustainabilityHubView />;
