@@ -148,3 +148,39 @@ def health_check(db: Session = Depends(get_db)):
             "database": f"offline: {str(e)}",
             "diagnostics": diagnostics
         }
+
+# Mount static frontend files & serve SPA index.html or root API status
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+BASE_PROJECT_DIR = Path(__file__).resolve().parent.parent
+DIST_DIR = BASE_PROJECT_DIR.parent / "dist"
+if not DIST_DIR.exists():
+    DIST_DIR = BASE_PROJECT_DIR / "dist"
+
+if DIST_DIR.exists():
+    assets_dir = DIST_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/")
+    async def serve_root():
+        return FileResponse(DIST_DIR / "index.html")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        file_path = DIST_DIR / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(DIST_DIR / "index.html")
+else:
+    @app.get("/")
+    def root_api():
+        return {
+            "message": "Welcome to Agri-Vision AI Platform Backend API",
+            "docs": "/docs",
+            "health": "/api/health",
+            "status": "online"
+        }
