@@ -12,7 +12,7 @@ from sqlalchemy import func
 from app.db.session import get_db
 from app.models.agricultural_data import State, District, CropRecord, WeatherRecord, SoilRecord
 from app.models.india_intelligence import (
-    SoilType, CropType, SoilCropMapping, SatelliteMetric, YieldPrediction
+    SoilType, CropType, SoilCropMapping, SatelliteMetric, YieldPrediction, CropDetail
 )
 from app.services.india_seed_data import (
     STATE_SOIL_DISTRIBUTION, STATE_SATELLITE_METRICS, INDIA_DISTRICTS
@@ -547,3 +547,34 @@ def classify_crops(
         "rainfall_mm": rainfall,
         "classifications": classifications,
     }
+
+
+@router.get("/crop-details")
+def get_crop_details(crop: Optional[str] = None, limit: int = 100, db: Session = Depends(get_db)):
+    """
+    Get image metadata records from Crop_details.csv dataset.
+    Optional filter by crop name (e.g. wheat, sugarcane, jute, maize, rice).
+    """
+    query = db.query(CropDetail)
+    if crop:
+        query = query.filter(CropDetail.crop.ilike(f"%{crop}%"))
+    total = query.count()
+    items = query.limit(limit).all()
+
+    stats = db.query(CropDetail.crop, func.count(CropDetail.id).label("count")).group_by(CropDetail.crop).all()
+    summary = {row.crop: row.count for row in stats}
+
+    return {
+        "total": total,
+        "summary": summary,
+        "items": [
+            {
+                "id": item.id,
+                "image_path": item.image_path,
+                "crop": item.crop,
+                "croplabel": item.croplabel
+            }
+            for item in items
+        ]
+    }
+

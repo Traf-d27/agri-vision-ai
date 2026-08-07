@@ -112,3 +112,14 @@ class YieldPrediction(Base):
     state = relationship("State", foreign_keys=[state_id])
     district = relationship("District", foreign_keys=[district_id])
     crop_type = relationship("CropType", back_populates="yield_predictions")
+
+
+class CropDetail(Base):
+    """Dataset model for Crop_details.csv metadata"""
+    __tablename__ = "crop_details"
+
+    id = Column(Integer, primary_key=True, index=True)
+    image_path = Column(String, nullable=False)
+    crop = Column(String, index=True, nullable=False)
+    croplabel = Column(Integer, nullable=False)
+

@@ -640,3 +640,39 @@ def seed_india_intelligence(db: Session):
     logger.info(f"India intelligence seeded: {len(INDIA_STATES)} states, "
                 f"{sum(len(v) for v in INDIA_DISTRICTS.values())} districts, "
                 f"{len(INDIA_SOIL_TYPES)} soil types, {len(INDIA_CROP_TYPES)} crops.")
+
+
+def seed_crop_details(db: Session, csv_path: str):
+    from pathlib import Path
+    import pandas as pd
+    from app.models.india_intelligence import CropDetail
+
+    try:
+        if db.query(CropDetail).count() > 0:
+            logger.info("CropDetail dataset already seeded.")
+            return
+    except Exception:
+        pass
+
+    path_obj = Path(csv_path)
+    if not path_obj.exists():
+        logger.warning(f"Crop_details CSV not found at {csv_path}")
+        return
+
+    try:
+        df = pd.read_csv(csv_path)
+        records = []
+        for _, row in df.iterrows():
+            img_path = str(row.get('path', ''))
+            crop_name = str(row.get('crop', '')).strip()
+            crop_lbl = int(row.get('croplabel', 0))
+            records.append(CropDetail(image_path=img_path, crop=crop_name, croplabel=crop_lbl))
+
+        if records:
+            db.bulk_save_objects(records)
+            db.commit()
+            logger.info(f"Successfully seeded {len(records)} CropDetail records into database.")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error seeding crop details dataset: {e}")
+

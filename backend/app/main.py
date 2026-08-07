@@ -11,7 +11,7 @@ print(f"INFO:     DATABASE_URL loaded: {mask_database_url(settings.DATABASE_URL)
 
 # Register all models for create_all to find them
 from app.models.agricultural_data import State, District, CropRecord, WeatherRecord, SoilRecord
-from app.models.india_intelligence import SoilType, CropType, SoilCropMapping, SatelliteMetric, YieldPrediction
+from app.models.india_intelligence import SoilType, CropType, SoilCropMapping, SatelliteMetric, YieldPrediction, CropDetail
 from app.models.prediction_log import PredictionLog
 from app.models.report_log import ExportReportLog
 
@@ -19,10 +19,38 @@ from app.services.data_manager import seed_database
 from app.api.routes import auth, farms, analytics, ml, reports, assistant, data
 from app.api.routes import india as india_router
 
-# Create DB Tables (new tables will be added via create_all)
+# Lightweight SQLite Schema Migration for Render/Production deployments
+from sqlalchemy import inspect
+try:
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        if inspector.has_table("states"):
+            existing_cols = [c["name"] for c in inspector.get_columns("states")]
+            for col, col_type in [("latitude", "FLOAT"), ("longitude", "FLOAT"), ("area_km2", "FLOAT"), ("region", "VARCHAR")]:
+                if col not in existing_cols:
+                    try:
+                        conn.execute(text(f"ALTER TABLE states ADD COLUMN {col} {col_type}"))
+                        conn.commit()
+                        print(f"INFO:     Auto-migrated table states: added column {col}")
+                    except Exception as ex:
+                        print(f"WARNING:  Failed to add column {col} to states: {ex}")
+        if inspector.has_table("districts"):
+            existing_cols = [c["name"] for c in inspector.get_columns("districts")]
+            for col, col_type in [("latitude", "FLOAT"), ("longitude", "FLOAT")]:
+                if col not in existing_cols:
+                    try:
+                        conn.execute(text(f"ALTER TABLE districts ADD COLUMN {col} {col_type}"))
+                        conn.commit()
+                        print(f"INFO:     Auto-migrated table districts: added column {col}")
+                    except Exception as ex:
+                        print(f"WARNING:  Failed to add column {col} to districts: {ex}")
+except Exception as migration_err:
+    print(f"WARNING:  Auto-migration check skipped/failed: {migration_err}")
+
+# Create DB Tables
 Base.metadata.create_all(bind=engine)
 
-# Seed original database
+# Seed database
 db = SessionLocal()
 try:
     BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,10 +67,17 @@ try:
         from app.services.etl_manager import seed_india_data
         seed_india_data(db, str(ENRICHED_CSV_PATH))
 
-    # Seed India Intelligence Data (new national-scale platform)
+    # Seed India Intelligence Data (national-scale platform)
     try:
-        from app.services.india_seed_data import seed_india_intelligence
+        from app.services.india_seed_data import seed_india_intelligence, seed_crop_details
         seed_india_intelligence(db)
+        
+        # Seed Crop_details.csv dataset
+        CROP_DETAILS_CSV_PATH = BASE_DIR / "public" / "Crop_details.csv"
+        if not CROP_DETAILS_CSV_PATH.exists():
+            CROP_DETAILS_CSV_PATH = BASE_DIR.parent / "public" / "Crop_details.csv"
+        if CROP_DETAILS_CSV_PATH.exists():
+            seed_crop_details(db, str(CROP_DETAILS_CSV_PATH))
     except Exception as e:
         print(f"WARNING: India intelligence seed failed: {e}")
 
