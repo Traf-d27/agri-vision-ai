@@ -7,6 +7,11 @@ class State(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
+    # Geospatial extensions
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    area_km2 = Column(Float, nullable=True)
+    region = Column(String, nullable=True)  # North / South / East / West / Central / Northeast
 
     districts = relationship("District", back_populates="state", cascade="all, delete-orphan")
     crops = relationship("CropRecord", back_populates="state", cascade="all, delete-orphan")
@@ -19,6 +24,9 @@ class District(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
     state_id = Column(Integer, ForeignKey("states.id"), nullable=False)
+    # Geospatial extensions
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
 
     state = relationship("State", back_populates="districts")
     crops = relationship("CropRecord", back_populates="district", cascade="all, delete-orphan")

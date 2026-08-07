@@ -17,6 +17,7 @@ import SatelliteMonitoringView from './components/SatelliteMonitoringView';
 import AuthGate from './components/AuthGate';
 import StateAnalyticsView from './components/StateAnalyticsView';
 import DistrictAnalyticsView from './components/DistrictAnalyticsView';
+import IndiaIntelView from './components/IndiaIntelView';
 
 import { 
   LayoutDashboard, 
@@ -67,6 +68,7 @@ function AppContent() {
   // Sidebar navigation menu
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="nav-item-icon" /> },
+    { id: 'india_intel', label: '🇮🇳 India Intel', icon: <Globe className="nav-item-icon" style={{ color: '#10b981' }} /> },
     { id: 'explorer', label: 'Dataset Explorer', icon: <Table className="nav-item-icon" /> },
     { id: 'analytics', label: 'Advanced Stats', icon: <BarChart2 className="nav-item-icon" /> },
     { id: 'state_analytics', label: 'State Analytics', icon: <Building2 className="nav-item-icon" /> },
@@ -86,6 +88,7 @@ function AppContent() {
   const renderView = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView />;
+      case 'india_intel': return <IndiaIntelView />;
       case 'explorer': return <DatasetExplorerView setActiveTab={setActiveTab} />;
       case 'analytics': return <AnalyticsView />;
       case 'state_analytics': return <StateAnalyticsView />;

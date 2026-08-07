@@ -8,18 +8,21 @@ from app.core.config import settings, mask_database_url
 from app.db.session import engine, Base, SessionLocal, get_db
 
 print(f"INFO:     DATABASE_URL loaded: {mask_database_url(settings.DATABASE_URL)}")
-# Register new models for create_all to find them
-from app.models.agricultural_data import State, District, CropRecord, WeatherRecord, SoilRecord
 
-from app.services.data_manager import seed_database
-from app.api.routes import auth, farms, analytics, ml, reports, assistant, data
+# Register all models for create_all to find them
+from app.models.agricultural_data import State, District, CropRecord, WeatherRecord, SoilRecord
+from app.models.india_intelligence import SoilType, CropType, SoilCropMapping, SatelliteMetric, YieldPrediction
 from app.models.prediction_log import PredictionLog
 from app.models.report_log import ExportReportLog
 
-# Create DB Tables
+from app.services.data_manager import seed_database
+from app.api.routes import auth, farms, analytics, ml, reports, assistant, data
+from app.api.routes import india as india_router
+
+# Create DB Tables (new tables will be added via create_all)
 Base.metadata.create_all(bind=engine)
 
-# Seed database
+# Seed original database
 db = SessionLocal()
 try:
     BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,11 +33,19 @@ try:
     if CSV_PATH.exists():
         seed_database(db, str(CSV_PATH))
 
-    # Seed India Agricultural Data
+    # Seed Enriched India Data (legacy)
     ENRICHED_CSV_PATH = BASE_DIR / "public" / "enriched_agriculture_dataset.csv"
     if ENRICHED_CSV_PATH.exists():
         from app.services.etl_manager import seed_india_data
         seed_india_data(db, str(ENRICHED_CSV_PATH))
+
+    # Seed India Intelligence Data (new national-scale platform)
+    try:
+        from app.services.india_seed_data import seed_india_intelligence
+        seed_india_intelligence(db)
+    except Exception as e:
+        print(f"WARNING: India intelligence seed failed: {e}")
+
 finally:
     db.close()
 
@@ -58,6 +69,9 @@ app.include_router(ml.router, prefix=f"{settings.API_V1_STR}/ml", tags=["ml"])
 app.include_router(reports.router, prefix=f"{settings.API_V1_STR}/reports", tags=["reports"])
 app.include_router(assistant.router, prefix=f"{settings.API_V1_STR}/assistant", tags=["assistant"])
 app.include_router(data.router, prefix=f"{settings.API_V1_STR}/data", tags=["data"])
+# 🇮🇳 India National Intelligence Platform
+app.include_router(india_router.router, prefix=f"{settings.API_V1_STR}/india", tags=["india"])
+
 
 @app.get("/health")
 @app.get("/api/health")
