@@ -224,6 +224,12 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
   // Mode: 'national', 'satellite', 'state_analytics', 'district_analytics', 'regional_forecast'
   const [viewMode, setViewMode] = useState(initialMode);
 
+  useEffect(() => {
+    if (initialMode) {
+      setViewMode(initialMode);
+    }
+  }, [initialMode]);
+
   // States & DB Data
   const [statesData, setStatesData] = useState([]);
   const [geoJson, setGeoJson] = useState(null);
