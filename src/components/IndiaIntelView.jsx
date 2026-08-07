@@ -9,7 +9,7 @@ import {
   Globe, Layers, Droplet, Thermometer, Wind, Cloud, CloudRain,
   Leaf, BarChart2, Map, ChevronRight, ChevronLeft, X, RefreshCw,
   Sprout, Activity, Info, TrendingUp, Award, Cpu, Search, Radar,
-  Eye, Heart, Sparkles, ExternalLink, Maximize2
+  Eye, Heart, Sparkles, ExternalLink, Maximize2, Building2, MapPin
 } from 'lucide-react';
 import {
   fetchAllStates, fetchStateDetail, fetchHeatmapLayer,
@@ -217,36 +217,65 @@ function SatelliteMarkersLayer({ farms, metric, onFarmSelect }) {
   return null;
 }
 
-// ─── MAIN UNIFIED COMPONENT ──────────────────────────────────
+// ─── MAIN UNIFIED ALL-IN-ONE COMPONENT ───────────────────────
 export default function IndiaIntelView({ initialMode = 'national' }) {
-  const { filteredDataset = [] } = usePlatform();
+  const { API_BASE, auth, filteredDataset = [], rankings = { states: [] } } = usePlatform();
 
-  // Mode: 'national' (State Level Intelligence) or 'satellite' (Farm Level Satellite Telemetry)
+  // Mode: 'national', 'satellite', 'state_analytics', 'district_analytics', 'regional_forecast'
   const [viewMode, setViewMode] = useState(initialMode);
 
+  // States & DB Data
   const [statesData, setStatesData] = useState([]);
   const [geoJson, setGeoJson] = useState(null);
   const [activeLayer, setActiveLayer] = useState('ndvi');
   const [activeMapStyle, setActiveMapStyle] = useState('dark');
   
-  // Satellite Marker Metric: 'ndvi', 'cropHealth', 'yield', 'water', 'waterStress'
+  // Satellite Markers State
   const [markerMetric, setMarkerMetric] = useState('ndvi');
   const [selectedFarm, setSelectedFarm] = useState(null);
+
+  // State & District Analytics States
+  const [apiStates, setApiStates] = useState([]);
+  const [selectedStateId, setSelectedStateId] = useState('');
+  const [apiDistricts, setApiDistricts] = useState([]);
+  const [selectedDistrictId, setSelectedDistrictId] = useState('');
+
+  const [stateCrops, setStateCrops] = useState([]);
+  const [districtWeather, setDistrictWeather] = useState(null);
+  const [districtSoil, setDistrictSoil] = useState(null);
 
   const [selectedState, setSelectedState] = useState(null);
   const [stateDetail, setStateDetail] = useState(null);
   const [weather, setWeather] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
-  const [selectedSoil, setSelectedSoil] = useState(null);
-  const [soilDetail, setSoilDetail] = useState(null);
   const [cropClassification, setCropClassification] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [soilDrawerOpen, setSoilDrawerOpen] = useState(false);
   const [farmDrawerOpen, setFarmDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+
+  // Regional Heatmap & 5-Year Forecast States
+  const [selectedStateName, setSelectedStateName] = useState('Punjab');
+  const [forecastPoints, setForecastPoints] = useState([]);
+
+  // Stylized SVG State Polygons
+  const statePolygons = [
+    { id: 'Punjab', name: 'Punjab', abbrev: 'PB', points: '150,110 185,115 190,145 155,150' },
+    { id: 'Haryana', name: 'Haryana', abbrev: 'HR', points: '172,152 195,147 205,178 180,185' },
+    { id: 'Rajasthan', name: 'Rajasthan', abbrev: 'RJ', points: '80,160 160,150 170,210 100,230 75,200' },
+    { id: 'Gujarat', name: 'Gujarat', abbrev: 'GJ', points: '45,250 100,240 120,270 105,300 55,290' },
+    { id: 'Madhya Pradesh', name: 'Madhya Pradesh', abbrev: 'MP', points: '145,220 245,210 265,280 155,290' },
+    { id: 'Uttar Pradesh', name: 'Uttar Pradesh', abbrev: 'UP', points: '190,170 280,150 300,200 210,220' },
+    { id: 'Maharashtra', name: 'Maharashtra', abbrev: 'MH', points: '115,300 205,290 225,370 135,380' },
+    { id: 'Karnataka', name: 'Karnataka', abbrev: 'KA', points: '135,385 175,380 185,470 145,460' },
+    { id: 'Andhra Pradesh', name: 'Andhra Pradesh', abbrev: 'AP', points: '190,380 225,360 245,440 200,460' },
+    { id: 'Tamil Nadu', name: 'Tamil Nadu', abbrev: 'TN', points: '155,465 195,465 205,520 170,520' },
+    { id: 'Bihar', name: 'Bihar', abbrev: 'BR', points: '285,190 345,185 355,220 295,230' },
+    { id: 'West Bengal', name: 'West Bengal', abbrev: 'WB', points: '340,220 375,215 385,290 360,290' },
+    { id: 'Odisha', name: 'Odisha', abbrev: 'OD', points: '255,285 315,280 335,330 275,340' },
+    { id: 'Assam', name: 'Assam', abbrev: 'AS', points: '395,180 455,175 465,200 405,210' }
+  ];
 
   const TILE_LAYERS = {
     dark:      { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attr: '©OpenStreetMap ©CartoDB' },
@@ -265,20 +294,78 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
         ]);
         setStatesData(states);
         setGeoJson(geo);
+
+        // Fetch DB States for State/District Analytics
+        const headers = auth?.token ? { 'Authorization': `Bearer ${auth.token}` } : {};
+        const response = await fetch(`${API_BASE}/data/states`, { headers });
+        if (response.ok) {
+          const dbStates = await response.json();
+          setApiStates(dbStates);
+          if (dbStates.length > 0) {
+            setSelectedStateId(dbStates[0].id.toString());
+          }
+        }
       } catch (e) {
-        setError(e.message);
+        console.error("Initialization error:", e);
       } finally {
         setLoading(false);
       }
     }
     init();
-  }, []);
+  }, [API_BASE, auth]);
 
-  // State click handler
+  // Fetch Districts & State Crops when selectedStateId changes
+  useEffect(() => {
+    if (!selectedStateId) return;
+    const fetchStateDetails = async () => {
+      try {
+        const headers = auth?.token ? { 'Authorization': `Bearer ${auth.token}` } : {};
+        const distRes = await fetch(`${API_BASE}/data/districts?state_id=${selectedStateId}`, { headers });
+        const distData = distRes.ok ? await distRes.json() : [];
+        setApiDistricts(distData);
+        if (distData.length > 0) {
+          setSelectedDistrictId(distData[0].id.toString());
+        } else {
+          setSelectedDistrictId('');
+          setDistrictWeather(null);
+          setDistrictSoil(null);
+        }
+
+        const cropRes = await fetch(`${API_BASE}/data/crops?state_id=${selectedStateId}`, { headers });
+        const cropData = cropRes.ok ? await cropRes.json() : [];
+        setStateCrops(cropData);
+
+      } catch (err) {
+        console.error("Failed to fetch state analytics data", err);
+      }
+    };
+    fetchStateDetails();
+  }, [selectedStateId, API_BASE, auth]);
+
+  // Fetch Weather & Soil when selectedDistrictId changes
+  useEffect(() => {
+    if (!selectedDistrictId) return;
+    const fetchDistrictDetails = async () => {
+      try {
+        const headers = auth?.token ? { 'Authorization': `Bearer ${auth.token}` } : {};
+        const weatherRes = await fetch(`${API_BASE}/data/weather?district_id=${selectedDistrictId}`, { headers });
+        const weatherData = weatherRes.ok ? await weatherRes.json() : [];
+        setDistrictWeather(weatherData.length > 0 ? weatherData[0] : null);
+
+        const soilRes = await fetch(`${API_BASE}/data/soil?district_id=${selectedDistrictId}`, { headers });
+        const soilData = soilRes.ok ? await soilRes.json() : [];
+        setDistrictSoil(soilData.length > 0 ? soilData[0] : null);
+      } catch (err) {
+        console.error("Failed to fetch district details", err);
+      }
+    };
+    fetchDistrictDetails();
+  }, [selectedDistrictId, API_BASE, auth]);
+
+  // State click handler on Map
   const handleStateClick = useCallback(async (state) => {
     setSelectedState(state);
     setPanelOpen(true);
-    setSoilDrawerOpen(false);
     setFarmDrawerOpen(false);
     setStateDetail(null);
     setWeather(null);
@@ -311,20 +398,6 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
     setSelectedFarm(farm);
     setFarmDrawerOpen(true);
     setPanelOpen(false);
-    setSoilDrawerOpen(false);
-  }, []);
-
-  // Soil click handler
-  const handleSoilClick = useCallback(async (soilId, soilName) => {
-    setSelectedSoil(soilName);
-    setSoilDrawerOpen(true);
-    setSoilDetail(null);
-    try {
-      const detail = await fetchSoilDetail(soilId);
-      setSoilDetail(detail);
-    } catch (e) {
-      console.error('Soil detail error:', e);
-    }
   }, []);
 
   const handleRefresh = useCallback(async () => {
@@ -341,29 +414,88 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
     }
   }, [selectedState, handleStateClick]);
 
+  // Forecast points for Regional mode
+  useEffect(() => {
+    const futureYears = [2026, 2027, 2028, 2029, 2030];
+    const avgYield = 28.5;
+    const points = futureYears.map((year, yrIdx) => ({
+      year,
+      yieldVal: +(avgYield * (1 + (yrIdx + 1) * 0.035)).toFixed(2),
+      waterVal: +(48000 * (1 - yrIdx * 0.015)).toFixed(0)
+    }));
+    setForecastPoints(points);
+  }, [selectedStateName]);
+
   const filteredStates = statesData.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const layerKeys = ['ndvi', 'evi', 'ndwi', 'rainfall', 'temperature', 'crop_cover'];
 
-  // Calculate diagnostic averages for satellite telemetry
-  const calculateSatelliteStats = () => {
-    if (!filteredDataset || filteredDataset.length === 0) return { ndvi: 0.52, vhi: 68, health: 74, stress: 28 };
-    const n = filteredDataset.length;
-    const ndvi = filteredDataset.reduce((a, b) => a + (b.ndvi || 0.5), 0) / n;
-    const vhi = filteredDataset.reduce((a, b) => a + (b.vhi || 65), 0) / n;
-    const health = filteredDataset.reduce((a, b) => a + (b.cropHealth || 70), 0) / n;
-    const stress = filteredDataset.reduce((a, b) => a + (b.waterStress || 30), 0) / n;
-    return { ndvi, vhi, health, stress };
+  const getYieldByCropOption = () => {
+    const cropYields = {};
+    const cropCounts = {};
+    stateCrops.forEach(c => {
+      cropYields[c.crop_type] = (cropYields[c.crop_type] || 0) + c.yield_tons;
+      cropCounts[c.crop_type] = (cropCounts[c.crop_type] || 0) + 1;
+    });
+
+    const categories = Object.keys(cropYields);
+    const data = categories.map(cat => +(cropYields[cat] / cropCounts[cat]).toFixed(2));
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '10%' },
+      xAxis: {
+        type: 'category',
+        data: categories,
+        axisLabel: { color: '#94a3b8', fontFamily: 'Outfit' },
+        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'Yield (tons)',
+        axisLabel: { color: '#94a3b8' },
+        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } }
+      },
+      series: [{
+        name: 'Average Yield',
+        type: 'bar',
+        data: data,
+        itemStyle: {
+          color: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: '#10b981' }, { offset: 1, color: '#059669' }]
+          },
+          borderRadius: [4, 4, 0, 0]
+        }
+      }]
+    };
   };
 
-  const satStats = calculateSatelliteStats();
+  const getForecastOption = () => {
+    return {
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['Projected Yield (tons)', 'Water Demand (m³)'], textStyle: { color: '#94a3b8' } },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '15%' },
+      xAxis: { type: 'category', data: forecastPoints.map(p => p.year), axisLabel: { color: '#94a3b8' } },
+      yAxis: [
+        { type: 'value', name: 'Yield (tons)', axisLabel: { color: '#10b981' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.04)' } } },
+        { type: 'value', name: 'Water (m³)', axisLabel: { color: '#3b82f6' }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: 'Projected Yield (tons)', type: 'line', smooth: true, data: forecastPoints.map(p => p.yieldVal), itemStyle: { color: '#10b981' } },
+        { name: 'Water Demand (m³)', type: 'bar', yAxisIndex: 1, data: forecastPoints.map(p => p.waterVal), itemStyle: { color: 'rgba(59, 130, 246, 0.4)', borderRadius: [4,4,0,0] } }
+      ]
+    };
+  };
 
   return (
     <div className="content-body" style={{ padding: 0, overflow: 'hidden', height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ── TOP CONTROL BAR ── */}
+      {/* ── TOP UNIFIED NAVIGATION CONTROL BAR ── */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1.25rem',
         borderBottom: '1px solid var(--panel-border)',
@@ -371,503 +503,263 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
         flexWrap: 'wrap',
         zIndex: 100,
       }}>
-        {/* Title */}
+        {/* Platform Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginRight: '0.5rem' }}>
           <Globe size={18} style={{ color: '#10b981' }} />
-          <span style={{ fontWeight: '800', fontSize: '0.9rem', color: 'var(--text-primary)' }}>India & Satellite Intelligence</span>
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '20px', padding: '1px 8px' }}>
-            UNIFIED
+          <span style={{ fontWeight: '800', fontSize: '0.9rem', color: 'var(--text-primary)' }}>AgriSpatial Intelligence Platform</span>
+          <span style={{ fontSize: '0.65rem', color: '#10b981', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '20px', padding: '1px 8px', fontWeight: '700' }}>
+            ALL-IN-1
           </span>
         </div>
 
-        {/* View Mode Toggle */}
-        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <button
-            onClick={() => setViewMode('national')}
-            style={{
-              padding: '0.3rem 0.75rem',
-              borderRadius: '6px',
-              fontSize: '0.7rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              border: 'none',
-              background: viewMode === 'national' ? 'var(--primary)' : 'transparent',
-              color: viewMode === 'national' ? '#fff' : 'var(--text-secondary)',
-              transition: 'all 0.2s',
-              fontFamily: 'Outfit',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-          >
-            <Globe size={12} /> National Choropleth
-          </button>
-          <button
-            onClick={() => setViewMode('satellite')}
-            style={{
-              padding: '0.3rem 0.75rem',
-              borderRadius: '6px',
-              fontSize: '0.7rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              border: 'none',
-              background: viewMode === 'satellite' ? '#06b6d4' : 'transparent',
-              color: viewMode === 'satellite' ? '#fff' : 'var(--text-secondary)',
-              transition: 'all 0.2s',
-              fontFamily: 'Outfit',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}
-          >
-            <Radar size={12} /> Farm Satellite Telemetry
-          </button>
+        {/* 5-in-1 Master Mode Switcher */}
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap', gap: '2px' }}>
+          {[
+            { id: 'national', label: '🇮🇳 National Map', icon: <Globe size={12} />, color: '#10b981' },
+            { id: 'satellite', label: '🛰️ Satellite Monitor', icon: <Radar size={12} />, color: '#06b6d4' },
+            { id: 'state_analytics', label: '🏢 State Analytics', icon: <Building2 size={12} />, color: '#f59e0b' },
+            { id: 'district_analytics', label: '📍 District Intelligence', icon: <MapPin size={12} />, color: '#ec4899' },
+            { id: 'regional_forecast', label: '🗺️ Regional AI Forecasts', icon: <Cpu size={12} />, color: '#8b5cf6' }
+          ].map(m => (
+            <button
+              key={m.id}
+              onClick={() => setViewMode(m.id)}
+              style={{
+                padding: '0.35rem 0.75rem',
+                borderRadius: '6px',
+                fontSize: '0.72rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                border: 'none',
+                background: viewMode === m.id ? m.color : 'transparent',
+                color: viewMode === m.id ? '#fff' : 'var(--text-secondary)',
+                transition: 'all 0.2s',
+                fontFamily: 'Outfit',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
 
-        {/* Layer / Metric Toggles based on View Mode */}
-        {viewMode === 'national' ? (
-          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-            {layerKeys.map(lk => {
-              const cfg = LAYER_CONFIGS[lk];
-              return (
-                <button
-                  key={lk}
-                  onClick={() => setActiveLayer(lk)}
-                  style={{
-                    padding: '0.3rem 0.65rem',
-                    borderRadius: '20px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    border: activeLayer === lk ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
-                    background: activeLayer === lk ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)',
-                    color: activeLayer === lk ? '#10b981' : 'var(--text-secondary)',
-                    transition: 'all 0.2s',
-                    fontFamily: 'Outfit',
-                  }}
-                >
-                  {cfg.icon} {cfg.label}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-            {[
-              { key: 'ndvi', label: 'NDVI Index', icon: '🌿' },
-              { key: 'cropHealth', label: 'Crop Health', icon: '💚' },
-              { key: 'yield', label: 'Yield Output', icon: '🌾' },
-              { key: 'water', label: 'Water Footprint', icon: '💧' },
-              { key: 'waterStress', label: 'Water Stress', icon: '⚠️' }
-            ].map(m => (
-              <button
-                key={m.key}
-                onClick={() => setMarkerMetric(m.key)}
+        {/* Base Map Style (for Map Modes) */}
+        {(viewMode === 'national' || viewMode === 'satellite') && (
+          <div style={{ display: 'flex', gap: '0.25rem', marginLeft: 'auto' }}>
+            {['dark', 'satellite', 'terrain'].map(style => (
+              <button key={style}
+                onClick={() => setActiveMapStyle(style)}
                 style={{
-                  padding: '0.3rem 0.65rem',
-                  borderRadius: '20px',
-                  fontSize: '0.7rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  border: markerMetric === m.key ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.08)',
-                  background: markerMetric === m.key ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.03)',
-                  color: markerMetric === m.key ? '#06b6d4' : 'var(--text-secondary)',
-                  transition: 'all 0.2s',
-                  fontFamily: 'Outfit',
-                }}
-              >
-                {m.icon} {m.label}
+                  padding: '0.3rem 0.65rem', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '600',
+                  cursor: 'pointer', border: activeMapStyle === style ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.06)',
+                  background: activeMapStyle === style ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.02)',
+                  color: activeMapStyle === style ? '#06b6d4' : 'var(--text-secondary)', fontFamily: 'Outfit',
+                }}>
+                {style === 'dark' ? '🌑' : style === 'satellite' ? '🛰️' : '🗺️'} {style}
               </button>
             ))}
           </div>
         )}
-
-        {/* Map style */}
-        <div style={{ display: 'flex', gap: '0.25rem', marginLeft: 'auto' }}>
-          {['dark', 'satellite', 'terrain'].map(style => (
-            <button key={style}
-              onClick={() => setActiveMapStyle(style)}
-              style={{
-                padding: '0.3rem 0.65rem', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '600',
-                cursor: 'pointer', border: activeMapStyle === style ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.06)',
-                background: activeMapStyle === style ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.02)',
-                color: activeMapStyle === style ? '#06b6d4' : 'var(--text-secondary)', fontFamily: 'Outfit',
-              }}>
-              {style === 'dark' ? '🌑' : style === 'satellite' ? '🛰️' : '🗺️'} {style}
-            </button>
-          ))}
-          <motion.button
-            onClick={handleRefresh}
-            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            style={{
-              padding: '0.3rem 0.65rem', borderRadius: '8px', fontSize: '0.65rem', fontWeight: '600',
-              cursor: 'pointer', border: '1px solid rgba(255,255,255,0.06)', fontFamily: 'Outfit',
-              background: 'rgba(255,255,255,0.02)', color: 'var(--text-secondary)',
-            }}>
-            <RefreshCw size={11} style={{ display: 'inline', marginRight: '4px', animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-            Refresh
-          </motion.button>
-        </div>
       </div>
 
-      {/* ── MAIN CONTENT ── */}
+      {/* ── MAIN CONTENT CONTAINER ── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
 
-        {/* ── LEFT SIDEBAR (state list / farm list) ── */}
-        <div style={{
-          width: '240px',
-          flexShrink: 0,
-          borderRight: '1px solid var(--panel-border)',
-          background: 'rgba(7,10,14,0.95)',
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex: 50,
-        }}>
-          {/* Search */}
-          <div style={{ padding: '0.75rem', borderBottom: '1px solid var(--panel-border)' }}>
-            <div style={{ position: 'relative' }}>
-              <Search size={12} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={viewMode === 'national' ? "Search states…" : "Filter regions…"}
-                style={{
-                  width: '100%', padding: '0.4rem 0.5rem 0.4rem 1.75rem',
-                  background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.72rem',
-                  fontFamily: 'Outfit', outline: 'none',
-                }}
-              />
-            </div>
-          </div>
+        {/* ── LEAFLET MAP MODES (NATIONAL & SATELLITE) ── */}
+        {(viewMode === 'national' || viewMode === 'satellite') && (
+          <>
+            {/* Left State/Farm Sidebar */}
+            <div style={{
+              width: '240px',
+              flexShrink: 0,
+              borderRight: '1px solid var(--panel-border)',
+              background: 'rgba(7,10,14,0.95)',
+              display: 'flex',
+              flexDirection: 'column',
+              zIndex: 50,
+            }}>
+              <div style={{ padding: '0.75rem', borderBottom: '1px solid var(--panel-border)' }}>
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={viewMode === 'national' ? "Search states…" : "Search farms…"}
+                  style={{
+                    width: '100%', padding: '0.4rem 0.5rem',
+                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.72rem',
+                    fontFamily: 'Outfit', outline: 'none',
+                  }}
+                />
+              </div>
 
-          {/* State / Farm List */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
-            {viewMode === 'national' ? (
-              loading ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                  Loading states…
-                </div>
-              ) : filteredStates.map(state => {
-                const isSelected = selectedState?.id === state.id;
-                const ndviColor = ndviToColor(state.ndvi);
-                return (
-                  <motion.div
-                    key={state.id}
-                    onClick={() => handleStateClick(state)}
-                    whileHover={{ x: 3 }}
-                    style={{
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      marginBottom: '2px',
-                      border: isSelected ? '1px solid rgba(16,185,129,0.35)' : '1px solid transparent',
-                      background: isSelected ? 'rgba(16,185,129,0.08)' : 'transparent',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ndviColor, flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: isSelected ? '700' : '500', color: isSelected ? '#10b981' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {state.name}
-                      </div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>
-                        NDVI {state.ndvi?.toFixed(2)} · {state.region}
-                      </div>
-                    </div>
-                    {isSelected && <ChevronRight size={12} style={{ color: '#10b981', flexShrink: 0 }} />}
-                  </motion.div>
-                );
-              })
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '700', padding: '0.2rem 0.4rem' }}>
-                  Satellite Farms ({filteredDataset.length})
-                </div>
-                {filteredDataset.map(farm => {
-                  const isSelected = selectedFarm?.Farm_ID === farm.Farm_ID;
-                  return (
-                    <motion.div
-                      key={farm.id || farm.Farm_ID}
-                      onClick={() => handleFarmSelect(farm)}
-                      whileHover={{ x: 3 }}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
+                {viewMode === 'national' ? (
+                  filteredStates.map(state => (
+                    <div
+                      key={state.id}
+                      onClick={() => handleStateClick(state)}
                       style={{
-                        padding: '0.5rem 0.65rem',
+                        padding: '0.55rem 0.75rem',
                         borderRadius: '8px',
                         cursor: 'pointer',
-                        border: isSelected ? '1px solid rgba(6,182,212,0.4)' : '1px solid rgba(255,255,255,0.04)',
-                        background: isSelected ? 'rgba(6,182,212,0.1)' : 'rgba(255,255,255,0.02)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '2px'
+                        marginBottom: '2px',
+                        border: selectedState?.id === state.id ? '1px solid #10b981' : '1px solid transparent',
+                        background: selectedState?.id === state.id ? 'rgba(16,185,129,0.1)' : 'transparent',
+                        fontSize: '0.75rem',
+                        color: selectedState?.id === state.id ? '#10b981' : 'var(--text-primary)'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: '700', color: isSelected ? '#06b6d4' : 'var(--text-primary)' }}>
-                          Farm {farm.Farm_ID}
-                        </span>
-                        <span style={{ fontSize: '0.6rem', color: '#10b981', background: 'rgba(16,185,129,0.1)', padding: '1px 6px', borderRadius: '10px' }}>
-                          NDVI {farm.ndvi?.toFixed(2) || '0.52'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                        {farm.Crop_Type} · {farm.City}, {farm.State}
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                      <b>{state.name}</b> (NDVI {state.ndvi?.toFixed(2)})
+                    </div>
+                  ))
+                ) : (
+                  filteredDataset.map(farm => (
+                    <div
+                      key={farm.id || farm.Farm_ID}
+                      onClick={() => handleFarmSelect(farm)}
+                      style={{
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        marginBottom: '4px',
+                        border: selectedFarm?.Farm_ID === farm.Farm_ID ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.04)',
+                        background: selectedFarm?.Farm_ID === farm.Farm_ID ? 'rgba(6,182,212,0.1)' : 'rgba(255,255,255,0.02)',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      <b style={{ color: '#06b6d4' }}>Farm {farm.Farm_ID}</b> ({farm.Crop_Type})<br/>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{farm.City}, {farm.State}</span>
+                    </div>
+                  ))
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Leaflet Map */}
+            <div style={{ flex: 1, position: 'relative', zIndex: 10 }}>
+              <MapContainer center={[20.5937, 78.9629]} zoom={5} style={{ width: '100%', height: '100%' }} zoomControl={false}>
+                <TileLayer url={TILE_LAYERS[activeMapStyle].url} attribution={TILE_LAYERS[activeMapStyle].attr} />
+                {viewMode === 'national' && geoJson && (
+                  <ChoroplethLayer geoJson={geoJson} statesData={statesData} activeLayer={activeLayer} selectedStateId={selectedState?.id} onStateClick={handleStateClick} />
+                )}
+                {viewMode === 'satellite' && (
+                  <SatelliteMarkersLayer farms={filteredDataset} metric={markerMetric} onFarmSelect={handleFarmSelect} />
+                )}
+              </MapContainer>
+            </div>
+          </>
+        )}
+
+        {/* ── STATE ANALYTICS MODE ── */}
+        {viewMode === 'state_analytics' && (
+          <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <label style={{ fontWeight: '700' }}>Target State:</label>
+              <select className="select-input" value={selectedStateId} onChange={(e) => setSelectedStateId(e.target.value)}>
+                {apiStates.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+              </select>
+            </div>
+
+            <div className="grid-2">
+              <div className="glass-card">
+                <h3>State Yield by Crop Type</h3>
+                <div className="chart-container" style={{ height: '260px' }}>
+                  <ReactECharts option={getYieldByCropOption()} style={{ height: '100%', width: '100%' }} />
+                </div>
+              </div>
+
+              <div className="glass-card">
+                <h3>Districts in State ({apiDistricts.length})</h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
+                  {apiDistricts.map(d => (
+                    <span key={d.id} style={{ padding: '0.5rem 0.85rem', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--panel-border)', fontSize: '0.8rem' }}>
+                      📍 {d.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* Satellite Telemetry Footer Stats */}
-          <div style={{ padding: '0.75rem', borderTop: '1px solid var(--panel-border)', background: 'rgba(255,255,255,0.01)' }}>
-            <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>
-              📡 Telemetry Averages
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.4rem', textAlign: 'center' }}>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.35rem', borderRadius: '6px' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#10b981' }}>{satStats.ndvi.toFixed(3)}</div>
-                <div style={{ fontSize: '0.55rem', color: 'var(--text-secondary)' }}>Mean NDVI</div>
+        {/* ── DISTRICT INTELLIGENCE MODE ── */}
+        {viewMode === 'district_analytics' && (
+          <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="glass-card" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              <div>
+                <label style={{ fontWeight: '700', marginRight: '0.5rem' }}>State:</label>
+                <select className="select-input" value={selectedStateId} onChange={(e) => setSelectedStateId(e.target.value)}>
+                  {apiStates.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+                </select>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.35rem', borderRadius: '6px' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#06b6d4' }}>{satStats.health.toFixed(0)}%</div>
-                <div style={{ fontSize: '0.55rem', color: 'var(--text-secondary)' }}>Health Index</div>
+              <div>
+                <label style={{ fontWeight: '700', marginRight: '0.5rem' }}>District:</label>
+                <select className="select-input" value={selectedDistrictId} onChange={(e) => setSelectedDistrictId(e.target.value)}>
+                  {apiDistricts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid-2">
+              <div className="glass-card">
+                <h3><CloudRain size={18} style={{ color: '#06b6d4', display: 'inline', marginRight: '6px' }} /> Climate Diagnostics</h3>
+                {districtWeather ? (
+                  <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#f59e0b' }}>{districtWeather.avg_temp}°C Avg Temperature</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#3b82f6' }}>{districtWeather.annual_rainfall} mm Rainfall</div>
+                    <div>Drought Risk: <b>{districtWeather.drought_risk}</b> | Flood Risk: <b>{districtWeather.flood_risk}</b></div>
+                  </div>
+                ) : <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Select a district to view climate records.</p>}
+              </div>
+
+              <div className="glass-card">
+                <h3><Layers size={18} style={{ color: '#10b981', display: 'inline', marginRight: '6px' }} /> Soil Profile</h3>
+                {districtSoil ? (
+                  <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--primary)' }}>{districtSoil.soil_type}</div>
+                    <div style={{ fontSize: '1rem', color: 'var(--secondary)' }}>Soil Quality Index: {districtSoil.soil_index} / 100</div>
+                  </div>
+                ) : <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>Select a district to view soil records.</p>}
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* ── MAP ── */}
-        <div style={{ flex: 1, position: 'relative', zIndex: 10 }}>
-          {loading ? (
-            <div style={{
-              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(7,10,14,0.9)', flexDirection: 'column', gap: '1rem',
-            }}>
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-                <Globe size={48} style={{ color: '#10b981', opacity: 0.7 }} />
-              </motion.div>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Loading Satellite & Intelligence Map…</span>
+        {/* ── REGIONAL AI FORECAST MODE ── */}
+        {viewMode === 'regional_forecast' && (
+          <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="grid-2">
+              <div className="glass-card">
+                <h3>Interactive SVG State Map</h3>
+                <div style={{ display: 'flex', justifyContent: 'center', height: '320px', marginTop: '1rem' }}>
+                  <svg viewBox="0 0 500 550" style={{ width: '100%', height: '100%' }}>
+                    {statePolygons.map(p => (
+                      <polygon
+                        key={p.id}
+                        points={p.points}
+                        fill={selectedStateName === p.name ? '#10b981' : 'rgba(255,255,255,0.05)'}
+                        stroke="#34d399"
+                        strokeWidth={selectedStateName === p.name ? 2.5 : 1}
+                        onClick={() => setSelectedStateName(p.name)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    ))}
+                  </svg>
+                </div>
+              </div>
+
+              <div className="glass-card">
+                <h3>5-Year Crop Yield Forecasts ({selectedStateName})</h3>
+                <div className="chart-container" style={{ height: '280px', marginTop: '1rem' }}>
+                  <ReactECharts option={getForecastOption()} style={{ height: '100%', width: '100%' }} />
+                </div>
+              </div>
             </div>
-          ) : (
-            <MapContainer
-              center={[20.5937, 78.9629]}
-              zoom={5}
-              style={{ width: '100%', height: '100%' }}
-              zoomControl={false}
-              attributionControl={false}
-            >
-              <TileLayer
-                key={activeMapStyle}
-                url={TILE_LAYERS[activeMapStyle].url}
-                attribution={TILE_LAYERS[activeMapStyle].attr}
-              />
-              
-              {/* Render GeoJSON Choropleth in National Mode */}
-              {viewMode === 'national' && geoJson && statesData.length > 0 && (
-                <ChoroplethLayer
-                  geoJson={geoJson}
-                  statesData={statesData}
-                  activeLayer={activeLayer}
-                  selectedStateId={selectedState?.id}
-                  onStateClick={handleStateClick}
-                />
-              )}
+          </div>
+        )}
 
-              {/* Render Satellite Farm Markers Layer in Satellite Mode */}
-              {viewMode === 'satellite' && (
-                <SatelliteMarkersLayer
-                  farms={filteredDataset}
-                  metric={markerMetric}
-                  onFarmSelect={handleFarmSelect}
-                />
-              )}
-            </MapContainer>
-          )}
-        </div>
-
-        {/* ── RIGHT PANEL: STATE DETAIL ── */}
-        <AnimatePresence>
-          {panelOpen && selectedState && viewMode === 'national' && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: '380px', opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                flexShrink: 0,
-                borderLeft: '1px solid var(--panel-border)',
-                background: 'rgba(7,10,14,0.98)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                zIndex: 50,
-              }}
-            >
-              <div style={{ padding: '1rem', minWidth: '380px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  <div>
-                    <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '2px' }}>
-                      {selectedState.name}
-                    </h2>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.65rem', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', color: '#10b981', borderRadius: '20px', padding: '2px 8px', fontWeight: '600' }}>
-                        {selectedState.region || 'India'}
-                      </span>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.04)', borderRadius: '20px', padding: '2px 8px' }}>
-                        {selectedState.area_km2?.toLocaleString()} km²
-                      </span>
-                    </div>
-                  </div>
-                  <motion.button
-                    onClick={() => setPanelOpen(false)}
-                    whileHover={{ scale: 1.1, background: 'rgba(239,68,68,0.1)' }}
-                    style={{ border: 'none', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', padding: '6px', color: 'var(--text-secondary)' }}
-                  >
-                    <X size={14} />
-                  </motion.button>
-                </div>
-
-                {/* Satellite Metrics Gauges */}
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--panel-border)', borderRadius: '12px', padding: '0.75rem', marginBottom: '0.75rem' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Activity size={11} /> Satellite Intelligence
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0.25rem' }}>
-                    <GaugeChart value={selectedState.ndvi || 0} max={1} label="NDVI" color="#10b981" />
-                    <GaugeChart value={selectedState.evi || 0} max={1} label="EVI" color="#22c55e" />
-                    <GaugeChart value={Math.max(0, selectedState.ndwi || 0)} max={1} label="NDWI" color="#06b6d4" />
-                  </div>
-                </div>
-
-                {/* Live Weather */}
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--panel-border)', borderRadius: '12px', padding: '0.75rem', marginBottom: '0.75rem' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <CloudRain size={11} /> Live Weather (Open-Meteo)
-                  </div>
-                  {weatherLoading ? (
-                    <div style={{ textAlign: 'center', padding: '1rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Fetching live weather…
-                    </div>
-                  ) : weather && !weather.error ? (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                        <WeatherIcon code={weather.current?.weather_code} />
-                        <div>
-                          <div style={{ fontSize: '1.6rem', fontWeight: '900', color: 'var(--text-primary)', lineHeight: 1 }}>
-                            {weather.current?.temperature_2m?.toFixed(1)}°C
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '0.5rem' }}>
-                      Weather unavailable
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* ── RIGHT PANEL: FARM SATELLITE DETAIL ── */}
-        <AnimatePresence>
-          {farmDrawerOpen && selectedFarm && viewMode === 'satellite' && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: '380px', opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                flexShrink: 0,
-                borderLeft: '1px solid var(--panel-border)',
-                background: 'rgba(7,10,14,0.98)',
-                display: 'flex',
-                flexDirection: 'column',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                zIndex: 50,
-              }}
-            >
-              <div style={{ padding: '1rem', minWidth: '380px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                  <div>
-                    <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--text-primary)', marginBottom: '2px' }}>
-                      Farm {selectedFarm.Farm_ID}
-                    </h2>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.65rem', background: 'rgba(6,182,212,0.12)', border: '1px solid rgba(6,182,212,0.25)', color: '#06b6d4', borderRadius: '20px', padding: '2px 8px', fontWeight: '600' }}>
-                        {selectedFarm.Crop_Type}
-                      </span>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.04)', borderRadius: '20px', padding: '2px 8px' }}>
-                        {selectedFarm.City}, {selectedFarm.State}
-                      </span>
-                    </div>
-                  </div>
-                  <motion.button
-                    onClick={() => setFarmDrawerOpen(false)}
-                    whileHover={{ scale: 1.1, background: 'rgba(239,68,68,0.1)' }}
-                    style={{ border: 'none', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', cursor: 'pointer', padding: '6px', color: 'var(--text-secondary)' }}
-                  >
-                    <X size={14} />
-                  </motion.button>
-                </div>
-
-                {/* Satellite Remote Sensing Diagnostics */}
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--panel-border)', borderRadius: '12px', padding: '0.75rem', marginBottom: '0.75rem' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Radar size={11} /> Remote Sensing Spectral Telemetry
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', textAlign: 'center' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#10b981' }}>
-                        {(selectedFarm.ndvi || 0.52).toFixed(3)}
-                      </div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>NDVI Vegetation Index</div>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: '8px' }}>
-                      <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#06b6d4' }}>
-                        {selectedFarm.cropHealth || 75}%
-                      </div>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>Crop Canopy Health</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Farm Resource Footprint */}
-                <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--panel-border)', borderRadius: '12px', padding: '0.75rem', marginBottom: '0.75rem' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Droplet size={11} /> Farm Operations & Resource Input
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Farm Area:</span>
-                      <span style={{ fontWeight: '700' }}>{selectedFarm['Farm_Area(acres)']} acres</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Water Footprint:</span>
-                      <span style={{ fontWeight: '700', color: '#3b82f6' }}>{(selectedFarm['Water_Usage(cubic meters)'] || 0).toLocaleString()} m³</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Fertilizer Used:</span>
-                      <span style={{ fontWeight: '700' }}>{selectedFarm['Fertilizer_Used(tons)']} tons</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Soil & Irrigation:</span>
-                      <span style={{ fontWeight: '700' }}>{selectedFarm.Soil_Type} · {selectedFarm.Irrigation_Type}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );
