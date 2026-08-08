@@ -220,12 +220,20 @@ function SatelliteMarkersLayer({ farms, metric, onFarmSelect }) {
 export default function IndiaIntelView({ initialMode = 'national' }) {
   const { API_BASE, auth, filteredDataset = [], rankings = { states: [] } } = usePlatform();
 
+  const resolveMode = (m) => {
+    if (m === 'state' || m === 'state_analytics' || m === 'regional_intel' || m === 'geo') return 'state_analytics';
+    if (m === 'district' || m === 'district_analytics') return 'district_analytics';
+    if (m === 'regional_forecast') return 'regional_forecast';
+    if (m === 'satellite') return 'satellite';
+    return m || 'national';
+  };
+
   // Mode: 'national', 'satellite', 'state_analytics', 'district_analytics', 'regional_forecast'
-  const [viewMode, setViewMode] = useState(initialMode);
+  const [viewMode, setViewMode] = useState(() => resolveMode(initialMode));
 
   useEffect(() => {
     if (initialMode) {
-      setViewMode(initialMode);
+      setViewMode(resolveMode(initialMode));
     }
   }, [initialMode]);
 
@@ -478,6 +486,11 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
       { id: '4', name: `${activeStateName} Agri Zone` }
     ];
   }, [apiDistricts, filteredDataset, activeStateName]);
+
+  const activeDistrictName = useMemo(() => {
+    const match = districtsForSelectedState.find(d => d.id === selectedDistrictId || d.name === selectedDistrictId || d.id?.toString() === selectedDistrictId?.toString());
+    return match ? match.name : districtsForSelectedState[0]?.name || `${activeStateName} District`;
+  }, [districtsForSelectedState, selectedDistrictId, activeStateName]);
 
   // Fetch Weather & Soil when selectedDistrictId changes
   useEffect(() => {
@@ -826,23 +839,77 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
                 {stateOptions.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
               </select>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
-                Active State: <strong style={{ color: '#10b981' }}>{activeStateName}</strong>
+                Active Region: <strong style={{ color: '#10b981' }}>{activeStateName}</strong>
               </span>
+            </div>
+
+            {/* State KPI Summary Metric Cards */}
+            <div className="grid-4">
+              <div className="glass-card stat-card" style={{ padding: '1.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Active Districts</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#10b981', marginTop: '0.25rem' }}>{districtsForSelectedState.length}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Tracked zones in {activeStateName}</div>
+              </div>
+
+              <div className="glass-card stat-card" style={{ padding: '1.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>State Farm Records</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#06b6d4', marginTop: '0.25rem' }}>{cropsForSelectedState.length}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Sampled crop production entries</div>
+              </div>
+
+              <div className="glass-card stat-card" style={{ padding: '1.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Avg Yield Output</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#f59e0b', marginTop: '0.25rem' }}>
+                  {(cropsForSelectedState.reduce((acc, c) => acc + (c.yield_tons || 0), 0) / (cropsForSelectedState.length || 1)).toFixed(1)} <span style={{ fontSize: '1rem' }}>tons</span>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Average seasonal harvest</div>
+              </div>
+
+              <div className="glass-card stat-card" style={{ padding: '1.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Vegetation Index</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#ec4899', marginTop: '0.25rem' }}>
+                  {stateCropCoverMap[activeStateName.toLowerCase()] || 64.5}%
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Agricultural canopy cover</div>
+              </div>
             </div>
 
             <div className="grid-2">
               <div className="glass-card">
-                <h3>State Yield by Crop Type ({cropsForSelectedState.length} records)</h3>
-                <div className="chart-container" style={{ height: '260px' }}>
+                <h3>State Yield Breakdown by Crop Type ({activeStateName})</h3>
+                <div className="chart-container" style={{ height: '260px', marginTop: '0.5rem' }}>
                   <ReactECharts option={getYieldByCropOption()} style={{ height: '100%', width: '100%' }} />
                 </div>
               </div>
 
               <div className="glass-card">
-                <h3>Districts in {activeStateName} ({districtsForSelectedState.length})</h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem' }}>
+                <h3>Districts & Agricultural Zones in {activeStateName} ({districtsForSelectedState.length})</h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                  Select a district to view localized climate diagnostics and soil health indicators.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', maxHeight: '220px', overflowY: 'auto' }}>
                   {districtsForSelectedState.map(d => (
-                    <span key={d.id} style={{ padding: '0.5rem 0.85rem', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--panel-border)', fontSize: '0.8rem', fontWeight: '600' }}>
+                    <span 
+                      key={d.id} 
+                      onClick={() => {
+                        setSelectedDistrictId(d.id.toString());
+                        setViewMode('district_analytics');
+                      }}
+                      style={{ 
+                        padding: '0.5rem 0.85rem', 
+                        borderRadius: '8px', 
+                        background: 'rgba(255,255,255,0.03)', 
+                        border: '1px solid var(--panel-border)', 
+                        fontSize: '0.8rem', 
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                      className="hover-card"
+                    >
                       📍 {d.name}
                     </span>
                   ))}
@@ -857,34 +924,59 @@ export default function IndiaIntelView({ initialMode = 'national' }) {
           <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div className="glass-card" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <div>
-                <label style={{ fontWeight: '700', marginRight: '0.5rem' }}>State:</label>
+                <label style={{ fontWeight: '700', marginRight: '0.5rem', fontSize: '0.85rem' }}>State:</label>
                 <select className="select-input" value={selectedStateId} onChange={(e) => setSelectedStateId(e.target.value)} style={{ minWidth: '180px' }}>
                   {stateOptions.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ fontWeight: '700', marginRight: '0.5rem' }}>District:</label>
+                <label style={{ fontWeight: '700', marginRight: '0.5rem', fontSize: '0.85rem' }}>Target District:</label>
                 <select className="select-input" value={selectedDistrictId} onChange={(e) => setSelectedDistrictId(e.target.value)} style={{ minWidth: '180px' }}>
                   {districtsForSelectedState.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+                Active District: <strong style={{ color: '#06b6d4' }}>{activeDistrictName}</strong> ({activeStateName})
+              </span>
             </div>
 
             <div className="grid-2">
-              <div className="glass-card">
-                <h3><CloudRain size={18} style={{ color: '#06b6d4', display: 'inline', marginRight: '6px' }} /> Climate Diagnostics ({activeStateName})</h3>
-                <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#f59e0b' }}>{districtWeather?.avg_temp || 26.4}°C Avg Temperature</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#3b82f6' }}>{districtWeather?.annual_rainfall || 840} mm Rainfall</div>
-                  <div style={{ fontSize: '0.85rem' }}>Drought Risk: <b style={{ color: '#10b981' }}>{districtWeather?.drought_risk || 'Low'}</b> | Flood Risk: <b style={{ color: '#10b981' }}>{districtWeather?.flood_risk || 'Moderate'}</b></div>
+              <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h3><CloudRain size={18} style={{ color: '#06b6d4', display: 'inline', marginRight: '6px' }} /> Climate Diagnostics ({activeDistrictName})</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                  <div style={{ padding: '1rem', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: '600' }}>TEMPERATURE</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff', marginTop: '0.25rem' }}>{districtWeather?.avg_temp || 26.4}°C</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Seasonal mean</div>
+                  </div>
+
+                  <div style={{ padding: '1rem', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: '600' }}>ANNUAL RAINFALL</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff', marginTop: '0.25rem' }}>{districtWeather?.annual_rainfall || 840} mm</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Precipitation level</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.85rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--panel-border)', fontSize: '0.85rem' }}>
+                  <span>Drought Risk Index: <b style={{ color: '#10b981' }}>{districtWeather?.drought_risk || 'Low'}</b></span>
+                  <span>Flood Risk Index: <b style={{ color: '#f59e0b' }}>{districtWeather?.flood_risk || 'Moderate'}</b></span>
                 </div>
               </div>
 
-              <div className="glass-card">
-                <h3><Layers size={18} style={{ color: '#10b981', display: 'inline', marginRight: '6px' }} /> Soil Profile ({activeStateName})</h3>
-                <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--primary)' }}>{districtSoil?.soil_type || 'Alluvial & Loamy Soil'}</div>
-                  <div style={{ fontSize: '1rem', color: 'var(--secondary)' }}>Soil Quality Index: {districtSoil?.soil_index || 82} / 100</div>
+              <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h3><Layers size={18} style={{ color: '#10b981', display: 'inline', marginRight: '6px' }} /> Soil Profile ({activeDistrictName})</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <div style={{ padding: '1rem', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600' }}>DOMINANT SOIL TYPE</div>
+                    <div style={{ fontSize: '1.3rem', fontWeight: '800', color: '#fff', marginTop: '0.25rem' }}>{districtSoil?.soil_type || 'Alluvial & Fertile Loamy Soil'}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>High nutrient retention capacity</div>
+                  </div>
+
+                  <div style={{ padding: '1rem', borderRadius: '10px', background: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#06b6d4', fontWeight: '600' }}>SOIL QUALITY INDEX</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff', marginTop: '0.25rem' }}>{districtSoil?.soil_index || 84} / 100</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Optimal pH range (6.5 - 7.2)</div>
+                  </div>
                 </div>
               </div>
             </div>
