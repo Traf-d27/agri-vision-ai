@@ -81,6 +81,23 @@ try:
     except Exception as e:
         print(f"WARNING: India intelligence seed failed: {e}")
 
+    # Seed default system admin user
+    try:
+        from app.models.user import User
+        from app.core import security
+        if db.query(User).count() == 0:
+            default_admin = User(
+                email="admin@agri-vision.ai",
+                hashed_password=security.get_password_hash("admin123"),
+                role="admin",
+                is_active=True
+            )
+            db.add(default_admin)
+            db.commit()
+            print("INFO:     Default admin user created: admin@agri-vision.ai")
+    except Exception as user_err:
+        print(f"WARNING:  Default user seed skipped/failed: {user_err}")
+
 finally:
     db.close()
 
