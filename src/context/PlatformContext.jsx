@@ -69,10 +69,19 @@ export const PlatformProvider = ({ children }) => {
     return headers;
   };
 
+  // Query defaults
+  const QUERY_OPTIONS = {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1
+  };
+
   // 1. Fetch filtered farm records
   const queryParams = buildQueryParams(filters);
   const { data: farmsData = [], isLoading: farmsLoading } = useQuery({
     queryKey: ['farms', filters],
+    ...QUERY_OPTIONS,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/farms/?${queryParams}`, {
         headers: getHeaders()
@@ -114,6 +123,7 @@ export const PlatformProvider = ({ children }) => {
   // 2. Fetch KPIs
   const { data: kpis = {}, isLoading: kpisLoading } = useQuery({
     queryKey: ['kpis', filters],
+    ...QUERY_OPTIONS,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/analytics/kpis?${queryParams}`, {
         headers: getHeaders()
@@ -126,6 +136,7 @@ export const PlatformProvider = ({ children }) => {
   // 3. Fetch Rankings
   const { data: rankings = { crops: [], soils: [], irrigations: [], farms: [], states: [], cities: [] } } = useQuery({
     queryKey: ['rankings', filters],
+    ...QUERY_OPTIONS,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/analytics/rankings?${queryParams}`, {
         headers: getHeaders()
@@ -138,6 +149,7 @@ export const PlatformProvider = ({ children }) => {
   // 4. Fetch Recommendations
   const { data: recommendations = [] } = useQuery({
     queryKey: ['recommendations', filters],
+    ...QUERY_OPTIONS,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/analytics/recommendations?${queryParams}`, {
         headers: getHeaders()
@@ -150,6 +162,7 @@ export const PlatformProvider = ({ children }) => {
   // 5. Fetch Insights
   const { data: aiInsights = [] } = useQuery({
     queryKey: ['insights', filters],
+    ...QUERY_OPTIONS,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/analytics/insights?${queryParams}`, {
         headers: getHeaders()
@@ -162,6 +175,7 @@ export const PlatformProvider = ({ children }) => {
   // 6. Fetch OLS regressions (Yield vs Water, Yield vs Fertilizer, Yield vs Area)
   const { data: regWater = null } = useQuery({
     queryKey: ['regRegression', 'water', filters],
+    ...QUERY_OPTIONS,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/analytics/regression?x_metric=water&${queryParams}`, { headers: getHeaders() });
       return response.ok ? response.json() : null;
@@ -170,6 +184,7 @@ export const PlatformProvider = ({ children }) => {
 
   const { data: regFert = null } = useQuery({
     queryKey: ['regRegression', 'fertilizer', filters],
+    ...QUERY_OPTIONS,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/analytics/regression?x_metric=fertilizer&${queryParams}`, { headers: getHeaders() });
       return response.ok ? response.json() : null;
@@ -178,6 +193,7 @@ export const PlatformProvider = ({ children }) => {
 
   const { data: regArea = null } = useQuery({
     queryKey: ['regRegression', 'area', filters],
+    ...QUERY_OPTIONS,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/analytics/regression?x_metric=area&${queryParams}`, { headers: getHeaders() });
       return response.ok ? response.json() : null;
@@ -215,11 +231,11 @@ export const PlatformProvider = ({ children }) => {
 
   // Auto-trigger ML model compilation when farms dataset is loaded
   useEffect(() => {
-    if (farmsData && farmsData.length > 0 && !trainMutation.data && !trainMutation.isPending) {
+    if (farmsData && farmsData.length > 0 && !trainMutation.data && !trainMutation.isPending && !trainClassifierMutation.isPending) {
       trainMutation.mutate();
       trainClassifierMutation.mutate();
     }
-  }, [farmsData]);
+  }, [farmsData, queryParams]);
 
   const predictYield = async (payload) => {
     const response = await fetch(`${API_BASE}/ml/predict?${queryParams}`, {

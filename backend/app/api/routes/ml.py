@@ -6,6 +6,8 @@ from app.api.routes.analytics import get_filtered_df, get_filter_params
 from app.services.ml_service import train_regression_models, train_classification_models, run_clustering_lab, predict_yield_on_fly
 from pydantic import BaseModel
 
+from app.core.cache import make_cache_key, get_cache, set_cache
+
 router = APIRouter()
 
 class PredictionRequest(BaseModel):
@@ -21,6 +23,11 @@ class PredictionRequest(BaseModel):
 
 @router.post("/train")
 def train_regression(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
+    cache_key = make_cache_key("ml_regression", filters)
+    cached_res = get_cache(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     df = get_filtered_df(db, filters)
     if df.empty or len(df) < 5:
         df = get_filtered_df(db, {})
@@ -28,10 +35,17 @@ def train_regression(db: Session = Depends(get_db), filters: Dict[str, Any] = De
         raise HTTPException(status_code=400, detail="Insufficient records to train regression models.")
         
     records = df.to_dict(orient='records')
-    return train_regression_models(records)
+    res = train_regression_models(records)
+    set_cache(cache_key, res)
+    return res
 
 @router.post("/train-classifier")
 def train_classifier(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
+    cache_key = make_cache_key("ml_classifier", filters)
+    cached_res = get_cache(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     df = get_filtered_df(db, filters)
     if df.empty or len(df) < 5:
         df = get_filtered_df(db, {})
@@ -39,7 +53,9 @@ def train_classifier(db: Session = Depends(get_db), filters: Dict[str, Any] = De
         raise HTTPException(status_code=400, detail="Insufficient records to train classification models.")
         
     records = df.to_dict(orient='records')
-    return train_classification_models(records)
+    res = train_classification_models(records)
+    set_cache(cache_key, res)
+    return res
 
 @router.post("/clustering")
 def run_clustering(

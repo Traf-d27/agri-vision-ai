@@ -9,6 +9,7 @@ from app.models.farm import FarmRecord
 from app.schemas.farm import FarmRecordCreate, FarmRecordResponse
 from app.api.routes.auth import get_current_user, User
 from app.services.data_manager import enrich_and_calculate_metrics, load_and_impute_csv
+from app.core.cache import clear_cache
 
 router = APIRouter()
 
@@ -121,6 +122,7 @@ def create_farm_record(
         new_rec = FarmRecord(**enriched_dict)
         db.add(new_rec)
         db.commit()
+        clear_cache()
         db.refresh(new_rec)
         return new_rec
     except Exception as e:
@@ -148,6 +150,7 @@ def update_farm_record(
             setattr(rec, key, value)
             
         db.commit()
+        clear_cache()
         db.refresh(rec)
         return rec
     except Exception as e:
@@ -169,6 +172,7 @@ def delete_farm_record(
     try:
         db.delete(rec)
         db.commit()
+        clear_cache()
         return None
     except Exception as e:
         db.rollback()
@@ -207,6 +211,7 @@ async def upload_csv_data(
                 inserted_records.append(new_rec)
                 
         db.commit()
+        clear_cache()
         for rec in inserted_records:
             db.refresh(rec)
             

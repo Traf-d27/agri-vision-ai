@@ -6,6 +6,7 @@ from typing import Optional, List, Dict, Any
 from app.db.session import get_db
 from app.models.farm import FarmRecord
 from app.api.routes.farms import apply_farm_filters
+from app.core.cache import make_cache_key, get_cache, set_cache, clear_cache
 
 router = APIRouter()
 
@@ -58,12 +59,19 @@ def fit_ols(x: np.ndarray, y: np.ndarray):
     }
 
 def get_filtered_df(db: Session, filters: Dict[str, Any]) -> pd.DataFrame:
+    cache_key = make_cache_key("df", filters)
+    cached_df = get_cache(cache_key)
+    if cached_df is not None:
+        return cached_df
+
     query = db.query(FarmRecord)
     query = apply_farm_filters(query, **filters)
     records = [r.__dict__ for r in query.all()]
     for r in records:
         r.pop('_sa_instance_state', None)
-    return pd.DataFrame(records)
+    df = pd.DataFrame(records)
+    set_cache(cache_key, df)
+    return df
 
 def get_filter_params(
     crop_type: Optional[str] = None,
@@ -100,6 +108,11 @@ def get_filter_params(
 
 @router.get("/kpis")
 def get_kpis(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
+    cache_key = make_cache_key("kpis", filters)
+    cached_res = get_cache(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     df = get_filtered_df(db, filters)
     if df.empty:
         return {}
@@ -129,7 +142,7 @@ def get_kpis(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(ge
     irr_eff = df.groupby('irrigation_type').apply(lambda x: x['yield_tons'].sum() / x['water_usage_cubic_meters'].sum() if x['water_usage_cubic_meters'].sum() > 0 else 0)
     best_irrigation = irr_eff.idxmax() if not irr_eff.empty else 'N/A'
     
-    return {
+    result = {
         "totalFarms": n,
         "avgYield": float(avg_yield),
         "avgWater": float(avg_water),
@@ -143,9 +156,16 @@ def get_kpis(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(ge
         "bestIrrigation": best_irrigation,
         "avgSustScore": float(avg_sust_score)
     }
+    set_cache(cache_key, result)
+    return result
 
 @router.get("/rankings")
 def get_rankings(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
+    cache_key = make_cache_key("rankings", filters)
+    cached_res = get_cache(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     df = get_filtered_df(db, filters)
     if df.empty:
         return {"crops": [], "soils": [], "irrigations": [], "farms": [], "states": [], "cities": []}
@@ -248,7 +268,7 @@ def get_rankings(db: Session = Depends(get_db), filters: Dict[str, Any] = Depend
             })
         city_ranks = sorted(city_ranks, key=lambda x: x['growthScore'], reverse=True)
         
-    return {
+    result = {
         "crops": crop_ranks,
         "soils": soil_ranks,
         "irrigations": irr_ranks,
@@ -256,9 +276,16 @@ def get_rankings(db: Session = Depends(get_db), filters: Dict[str, Any] = Depend
         "states": state_ranks,
         "cities": city_ranks
     }
+    set_cache(cache_key, result)
+    return result
 
 @router.get("/recommendations")
 def get_recommendations(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
+    cache_key = make_cache_key("recommendations", filters)
+    cached_res = get_cache(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     df = get_filtered_df(db, filters)
     if df.empty:
         return []
@@ -306,10 +333,16 @@ def get_recommendations(db: Session = Depends(get_db), filters: Dict[str, Any] =
             "urgency": "high"
         })
         
+    set_cache(cache_key, recs)
     return recs
 
 @router.get("/insights")
 def get_insights(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
+    cache_key = make_cache_key("insights", filters)
+    cached_res = get_cache(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     df = get_filtered_df(db, filters)
     if df.empty or len(df) < 3:
         return []
@@ -367,6 +400,7 @@ def get_insights(db: Session = Depends(get_db), filters: Dict[str, Any] = Depend
                 "color": "var(--accent)"
             })
             
+    set_cache(cache_key, insights)
     return insights
 
 @router.get("/regression")
@@ -375,6 +409,13 @@ def get_regression(
     db: Session = Depends(get_db),
     filters: Dict[str, Any] = Depends(get_filter_params)
 ):
+    params_with_metric = dict(filters)
+    params_with_metric["x_metric"] = x_metric
+    cache_key = make_cache_key("regression", params_with_metric)
+    cached_res = get_cache(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     df = get_filtered_df(db, filters)
     if df.empty or len(df) < 3:
         return {}
@@ -389,13 +430,20 @@ def get_regression(
         x = df['farm_area_acres'].values
         
     ols = fit_ols(x, y)
+    set_cache(cache_key, ols)
     return ols
 
 @router.get("/correlation")
 def get_correlation(db: Session = Depends(get_db), filters: Dict[str, Any] = Depends(get_filter_params)):
+    cache_key = make_cache_key("correlation", filters)
+    cached_res = get_cache(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     df = get_filtered_df(db, filters)
     if df.empty:
         return {}
     cols = ['farm_area_acres', 'water_usage_cubic_meters', 'fertilizer_used_tons', 'pesticide_used_kg', 'yield_tons', 'sustainability_score']
     corr = df[cols].corr().fillna(0.0).to_dict()
+    set_cache(cache_key, corr)
     return corr
