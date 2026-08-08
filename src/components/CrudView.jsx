@@ -102,8 +102,9 @@ export default function CrudView() {
   // Open Form for Adding
   const handleOpenAdd = () => {
     const ids = dataset.map(r => {
-      const match = r.Farm_ID.match(/\d+/);
-      return match ? parseInt(match[0]) : 0;
+      if (!r || !r.Farm_ID) return 0;
+      const match = String(r.Farm_ID).match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
     });
     const maxId = ids.length > 0 ? Math.max(...ids) : 0;
     const nextId = `F${String(maxId + 1).padStart(3, '0')}`;
@@ -144,7 +145,12 @@ export default function CrudView() {
   // Create Submit
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    const exists = dataset.some(r => r.Farm_ID.trim().toLowerCase() === formValues.Farm_ID.trim().toLowerCase());
+    if (!formValues.Farm_ID || !String(formValues.Farm_ID).trim()) {
+      showToast('Please specify a valid Farm ID.', 'error');
+      return;
+    }
+    const targetId = String(formValues.Farm_ID).trim().toLowerCase();
+    const exists = dataset.some(r => r && r.Farm_ID && String(r.Farm_ID).trim().toLowerCase() === targetId);
     if (exists) {
       showToast(`Record with Farm ID ${formValues.Farm_ID} already exists.`, 'error');
       return;
@@ -157,7 +163,7 @@ export default function CrudView() {
       showToast(`✓ Farm Record Created Successfully: ${formValues.Farm_ID}`);
     } catch (err) {
       console.error(err);
-      showToast(err.message, 'error');
+      showToast(err.message || 'Failed to create farm record.', 'error');
     }
   };
 

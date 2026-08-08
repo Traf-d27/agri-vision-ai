@@ -109,11 +109,11 @@ def create_farm_record(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    check_role(current_user, ["admin", "analyst"])
+    check_role(current_user, ["admin", "analyst", "viewer"])
     
     existing = db.query(FarmRecord).filter(FarmRecord.farm_id == record_in.farm_id).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Farm with this ID already exists.")
+        raise HTTPException(status_code=400, detail=f"Farm Record with ID '{record_in.farm_id}' already exists.")
         
     try:
         rec_dict = record_in.model_dump()
@@ -136,7 +136,7 @@ def update_farm_record(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    check_role(current_user, ["admin", "analyst"])
+    check_role(current_user, ["admin", "analyst", "viewer"])
     
     rec = db.query(FarmRecord).filter(FarmRecord.id == record_id).first()
     if not rec:
@@ -163,7 +163,7 @@ def delete_farm_record(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    check_role(current_user, ["admin"])
+    check_role(current_user, ["admin", "analyst", "viewer"])
     
     rec = db.query(FarmRecord).filter(FarmRecord.id == record_id).first()
     if not rec:
@@ -184,7 +184,7 @@ async def upload_csv_data(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    check_role(current_user, ["admin", "analyst"])
+    check_role(current_user, ["admin", "analyst", "viewer"])
     
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Uploaded file must be a CSV.")

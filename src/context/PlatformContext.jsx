@@ -315,18 +315,35 @@ export const PlatformProvider = ({ children }) => {
     queryClient.invalidateQueries({ queryKey: ['regRegression'] });
   };
 
+  const parseNum = (val) => {
+    const n = parseFloat(val);
+    return isNaN(n) ? 0.0 : n;
+  };
+
+  const formatErrorMessage = (errData, fallbackMsg) => {
+    if (!errData) return fallbackMsg;
+    if (typeof errData.detail === 'string') return errData.detail;
+    if (Array.isArray(errData.detail)) {
+      return errData.detail.map(d => {
+        const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : '';
+        return `${field ? field + ': ' : ''}${d.msg}`;
+      }).join('; ');
+    }
+    return errData.detail ? String(errData.detail) : fallbackMsg;
+  };
+
   const createFarmRecord = async (record) => {
     const backendData = {
-      farm_id: record.Farm_ID,
-      crop_type: record.Crop_Type,
-      farm_area_acres: Number(record['Farm_Area(acres)']),
-      irrigation_type: record.Irrigation_Type,
-      fertilizer_used_tons: Number(record['Fertilizer_Used(tons)']),
-      pesticide_used_kg: Number(record['Pesticide_Used(kg)']),
-      yield_tons: Number(record['Yield(tons)']),
-      soil_type: record.Soil_Type,
-      season: record.Season,
-      water_usage_cubic_meters: Number(record['Water_Usage(cubic meters)'])
+      farm_id: String(record.Farm_ID || '').trim(),
+      crop_type: String(record.Crop_Type || 'Cotton').trim(),
+      farm_area_acres: parseNum(record['Farm_Area(acres)']),
+      irrigation_type: String(record.Irrigation_Type || 'Drip').trim(),
+      fertilizer_used_tons: parseNum(record['Fertilizer_Used(tons)']),
+      pesticide_used_kg: parseNum(record['Pesticide_Used(kg)']),
+      yield_tons: parseNum(record['Yield(tons)']),
+      soil_type: String(record.Soil_Type || 'Loamy').trim(),
+      season: String(record.Season || 'Kharif').trim(),
+      water_usage_cubic_meters: parseNum(record['Water_Usage(cubic meters)'])
     };
     const response = await fetch(`${API_BASE}/farms/`, {
       method: 'POST',
@@ -334,8 +351,8 @@ export const PlatformProvider = ({ children }) => {
       body: JSON.stringify(backendData)
     });
     if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(errData.detail || "Failed to create farm record.");
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(formatErrorMessage(errData, "Failed to create farm record."));
     }
     invalidateAllQueries();
     return response.json();
@@ -343,16 +360,16 @@ export const PlatformProvider = ({ children }) => {
 
   const updateFarmRecord = async (id, record) => {
     const backendData = {
-      farm_id: record.Farm_ID,
-      crop_type: record.Crop_Type,
-      farm_area_acres: Number(record['Farm_Area(acres)']),
-      irrigation_type: record.Irrigation_Type,
-      fertilizer_used_tons: Number(record['Fertilizer_Used(tons)']),
-      pesticide_used_kg: Number(record['Pesticide_Used(kg)']),
-      yield_tons: Number(record['Yield(tons)']),
-      soil_type: record.Soil_Type,
-      season: record.Season,
-      water_usage_cubic_meters: Number(record['Water_Usage(cubic meters)'])
+      farm_id: String(record.Farm_ID || '').trim(),
+      crop_type: String(record.Crop_Type || 'Cotton').trim(),
+      farm_area_acres: parseNum(record['Farm_Area(acres)']),
+      irrigation_type: String(record.Irrigation_Type || 'Drip').trim(),
+      fertilizer_used_tons: parseNum(record['Fertilizer_Used(tons)']),
+      pesticide_used_kg: parseNum(record['Pesticide_Used(kg)']),
+      yield_tons: parseNum(record['Yield(tons)']),
+      soil_type: String(record.Soil_Type || 'Loamy').trim(),
+      season: String(record.Season || 'Kharif').trim(),
+      water_usage_cubic_meters: parseNum(record['Water_Usage(cubic meters)'])
     };
     const response = await fetch(`${API_BASE}/farms/${id}`, {
       method: 'PUT',
@@ -360,8 +377,8 @@ export const PlatformProvider = ({ children }) => {
       body: JSON.stringify(backendData)
     });
     if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(errData.detail || "Failed to update farm record.");
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(formatErrorMessage(errData, "Failed to update farm record."));
     }
     invalidateAllQueries();
     return response.json();
